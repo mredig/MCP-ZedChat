@@ -344,15 +344,32 @@ enum ServerHandlers {
 
 extension Value {
     var numberValue: Double? {
-        // Try to extract number from the Value type
-        // The Value type should have appropriate accessors
+        // Value in MCP SDK is ExpressibleByIntegerLiteral and ExpressibleByFloatLiteral
+        // Try different approaches to extract numeric value
+        
+        // First, check if it's directly convertible via mirror inspection
+        let mirror = Mirror(reflecting: self)
+        
+        // Check for integer value
+        if let intVal = mirror.children.first(where: { $0.label == "integer" || $0.label == "int" })?.value as? Int {
+            return Double(intVal)
+        }
+        
+        // Check for double/float value
+        if let doubleVal = mirror.children.first(where: { $0.label == "number" || $0.label == "double" })?.value as? Double {
+            return doubleVal
+        }
+        
+        // Try the accessor methods if they exist
         if let num = self.doubleValue {
             return num
         }
-        // If there's no direct number extraction, try string parsing
+        
+        // Try string parsing as last resort
         if let str = self.stringValue, let num = Double(str) {
             return num
         }
+        
         return nil
     }
 }
