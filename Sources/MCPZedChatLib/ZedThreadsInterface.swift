@@ -76,8 +76,14 @@ extension Threads {
 		return compressedData.withUnsafeBytes { (compressedPtr: UnsafeRawBufferPointer) -> Data? in
 			guard let srcAddress = compressedPtr.baseAddress else { return nil }
 			
+			// Handle empty input
+			let srcSize = compressedData.count
+			guard srcSize > 0 else {
+				return Data() // Empty input returns empty output
+			}
+			
 			// Start with a reasonable buffer size (check for overflow)
-			let (safeInitialSize, overflow) = compressedData.count.multipliedReportingOverflow(by: 3)
+			let (safeInitialSize, overflow) = srcSize.multipliedReportingOverflow(by: 3)
 			guard !overflow, safeInitialSize > 0 else {
 				return nil
 			}
@@ -87,11 +93,12 @@ extension Threads {
 			
 			// Use streaming decompression
 			var srcPos = 0
-			let srcSize = compressedData.count
 			
 			while srcPos < srcSize {
 				// Check if we need to grow buffer BEFORE attempting to write
-				if totalDecompressed >= outputBuffer.count - 1024 {
+				// Protect against underflow when outputBuffer.count < 1024
+				let availableSpace = outputBuffer.count > totalDecompressed ? outputBuffer.count - totalDecompressed : 0
+				if availableSpace < 1024 {
 					// Check for overflow before doubling
 					let (newSize, overflow) = outputBuffer.count.multipliedReportingOverflow(by: 2)
 					guard !overflow, newSize > outputBuffer.count else {
@@ -110,15 +117,22 @@ extension Threads {
 					guard totalDecompressed < currentBufferSize else { return (-1, 0) }
 					guard currentSrcPos < srcSize else { return (-1, 0) }
 					
+					// Additional safety: ensure we have space for at least 1 byte
+					guard currentBufferSize > totalDecompressed else { return (-1, 0) }
+					guard srcSize > currentSrcPos else { return (-1, 0) }
+					
+					let remainingOutput = currentBufferSize - totalDecompressed
+					let remainingInput = srcSize - currentSrcPos
+					
 					var outBuf = ZSTD_outBuffer(
 						dst: dstAddress.advanced(by: totalDecompressed),
-						size: currentBufferSize - totalDecompressed,
+						size: remainingOutput,
 						pos: 0
 					)
 					
 					var inBuf = ZSTD_inBuffer(
 						src: srcAddress.advanced(by: currentSrcPos),
-						size: srcSize - currentSrcPos,
+						size: remainingInput,
 						pos: 0
 					)
 					
@@ -128,6 +142,10 @@ extension Threads {
 					if ZSTD_isError(ret) != 0 {
 						return (-1, 0)
 					}
+					
+					// Validate return values are reasonable (not larger than buffer sizes)
+					guard outBuf.pos <= remainingOutput else { return (-1, 0) }
+					guard inBuf.pos <= remainingInput else { return (-1, 0) }
 					
 					return (Int(outBuf.pos), Int(inBuf.pos))
 				}
