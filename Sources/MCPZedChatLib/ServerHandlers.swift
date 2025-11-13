@@ -248,7 +248,7 @@ enum ServerHandlers {
 
 			let output = await StructuredContentOutput(
 				metaData: .init(summary: "Thread Details"),
-				content: thread.consumable)
+				content: thread.consumableWithContent)
 			let outputString = try encodeToJSONString(output)
 
 			return .init(

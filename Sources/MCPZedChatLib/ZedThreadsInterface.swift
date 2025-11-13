@@ -1,6 +1,7 @@
 import Foundation
 import SQLite3
 import SwiftPizzaSnips
+import libzstd
 
 struct ZedThreadsInterface {
 	let db: ThreadsDB
@@ -54,10 +55,49 @@ extension Threads {
 
 	@MainActor
 	var consumableWithContent: Consumable? {
-		.init(
+		let decompressed = decompressZstd(dataAsData)
+		
+		let contentString = decompressed.map { String(decoding: $0, as: UTF8.self) }
+
+		return .init(
 			id: uuid,
 			summary: summary,
 			lastUpdate: Self.dateFormatter.date(from: updatedAt) ?? .now,
-			content: "TBD")
+			content: contentString)
+	}
+	
+	private func decompressZstd(_ compressedData: Data) -> Data? {
+		return compressedData.withUnsafeBytes { (compressedPtr: UnsafeRawBufferPointer) -> Data? in
+			guard let baseAddress = compressedPtr.baseAddress else { return nil }
+			
+			// Get decompressed size
+			let decompressedSize = ZSTD_getFrameContentSize(baseAddress, compressedData.count)
+			
+			guard decompressedSize != ZSTD_CONTENTSIZE_ERROR,
+				  decompressedSize != ZSTD_CONTENTSIZE_UNKNOWN else {
+				return nil
+			}
+			
+			// Allocate buffer for decompressed data
+			var decompressedData = Data(count: Int(decompressedSize))
+			
+			let actualSize = decompressedData.withUnsafeMutableBytes { (decompressedPtr: UnsafeMutableRawBufferPointer) -> Int in
+				guard let destAddress = decompressedPtr.baseAddress else { return 0 }
+				
+				return ZSTD_decompress(
+					destAddress,
+					Int(decompressedSize),
+					baseAddress,
+					compressedData.count
+				)
+			}
+			
+			// Check for errors
+			if ZSTD_isError(actualSize) != 0 {
+				return nil
+			}
+			
+			return decompressedData
+		}
 	}
 }
