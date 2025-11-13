@@ -123,9 +123,17 @@ extension Threads {
 					let remainingOutput = currentBufferSize - totalDecompressed
 					let remainingInput = srcSize - currentSrcPos
 					
+					// Validate values are non-negative before size_t conversion
+					guard remainingOutput >= 0 else { return (-1, 0) }
+					guard remainingInput >= 0 else { return (-1, 0) }
+					
 					// Validate pointer arithmetic won't overflow
 					guard totalDecompressed <= Int.max - MemoryLayout<UInt8>.stride else { return (-1, 0) }
 					guard currentSrcPos <= Int.max - MemoryLayout<UInt8>.stride else { return (-1, 0) }
+					
+					// Validate advanced pointers stay within bounds
+					guard totalDecompressed <= currentBufferSize else { return (-1, 0) }
+					guard currentSrcPos <= srcSize else { return (-1, 0) }
 					
 					var outBuf = ZSTD_outBuffer(
 						dst: dstAddress.advanced(by: totalDecompressed),
@@ -150,6 +158,14 @@ extension Threads {
 					guard outBuf.pos <= size_t(remainingOutput) else { return (-1, 0) }
 					guard inBuf.pos <= size_t(remainingInput) else { return (-1, 0) }
 					
+					// Validate size_t to Int conversion won't overflow
+					// (These checks are platform-dependent but safe on all architectures)
+					#if arch(i386) || arch(arm)
+					// On 32-bit platforms, size_t could potentially exceed Int.max
+					guard outBuf.pos <= Int.max else { return (-1, 0) }
+					guard inBuf.pos <= Int.max else { return (-1, 0) }
+					#endif
+					
 					return (Int(outBuf.pos), Int(inBuf.pos))
 				}
 				
@@ -171,9 +187,10 @@ extension Threads {
 				}
 				srcPos = newSrcPos
 				
-				// If no more input consumed and we haven't processed everything, we're stuck
-				if result.consumed == 0 && srcPos < srcSize {
-					return nil // Incomplete decompression
+				// If no more input consumed and output written is also 0, we're stuck
+				// (zstd can legitimately consume 0 bytes while producing output)
+				if result.consumed == 0 && result.written == 0 && srcPos < srcSize {
+					return nil // Incomplete decompression - stuck state
 				}
 			}
 			
