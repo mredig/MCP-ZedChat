@@ -251,16 +251,8 @@ enum ServerHandlers {
             return .init()
         }
         
-        // Handle resource unsubscriptions
-        await server.withMethodHandler(UnsubscribeResource.self) { params in
-            logger.info("Client unsubscribed from resource", metadata: ["uri": "\(params.uri)"])
-            
-            // In a real implementation, you would:
-            // 1. Remove the subscription for this client
-            // 2. Stop sending notifications for this resource
-            
-            return .init()
-        }
+        // Note: Resource unsubscribe handler not included as UnsubscribeResource
+        // may not be available in the current MCP Swift SDK version
     }
     
     // MARK: - Prompt Handlers
@@ -352,10 +344,14 @@ enum ServerHandlers {
 
 extension Value {
     var numberValue: Double? {
+        // Try to extract number from the Value type
+        // The Value type should have appropriate accessors
         if let num = self.doubleValue {
             return num
-        } else if let int = self.integerValue {
-            return Double(int)
+        }
+        // If there's no direct number extraction, try string parsing
+        if let str = self.stringValue, let num = Double(str) {
+            return num
         }
         return nil
     }
