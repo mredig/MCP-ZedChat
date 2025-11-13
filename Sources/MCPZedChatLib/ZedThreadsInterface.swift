@@ -76,8 +76,12 @@ extension Threads {
 		return compressedData.withUnsafeBytes { (compressedPtr: UnsafeRawBufferPointer) -> Data? in
 			guard let srcAddress = compressedPtr.baseAddress else { return nil }
 			
-			// Start with a reasonable buffer size
-			let initialBufferSize = max(compressedData.count * 3, 4096)
+			// Start with a reasonable buffer size (check for overflow)
+			let (safeInitialSize, overflow) = compressedData.count.multipliedReportingOverflow(by: 3)
+			guard !overflow, safeInitialSize > 0 else {
+				return nil
+			}
+			let initialBufferSize = max(safeInitialSize, 4096)
 			var outputBuffer = Data(count: initialBufferSize)
 			var totalDecompressed = 0
 			
@@ -88,7 +92,12 @@ extension Threads {
 			while srcPos < srcSize {
 				// Check if we need to grow buffer BEFORE attempting to write
 				if totalDecompressed >= outputBuffer.count - 1024 {
-					outputBuffer.count = outputBuffer.count * 2
+					// Check for overflow before doubling
+					let (newSize, overflow) = outputBuffer.count.multipliedReportingOverflow(by: 2)
+					guard !overflow, newSize > outputBuffer.count else {
+						return nil // Buffer too large
+					}
+					outputBuffer.count = newSize
 				}
 				
 				let currentBufferSize = outputBuffer.count
@@ -127,8 +136,19 @@ extension Threads {
 					return nil
 				}
 				
-				totalDecompressed += result.written
-				srcPos += result.consumed
+				// Check for overflow when adding written bytes
+				let (newTotal, overflowTotal) = totalDecompressed.addingReportingOverflow(result.written)
+				guard !overflowTotal, newTotal <= outputBuffer.count else {
+					return nil // Overflow or buffer overrun
+				}
+				totalDecompressed = newTotal
+				
+				// Check for overflow when advancing source position
+				let (newSrcPos, overflowSrc) = srcPos.addingReportingOverflow(result.consumed)
+				guard !overflowSrc, newSrcPos <= srcSize else {
+					return nil // Overflow or read beyond buffer
+				}
+				srcPos = newSrcPos
 				
 				// If no more input consumed and we haven't processed everything, we're stuck
 				if result.consumed == 0 && srcPos < srcSize {
@@ -136,7 +156,10 @@ extension Threads {
 				}
 			}
 			
-			// Trim to actual size
+			// Trim to actual size (final safety check)
+			guard totalDecompressed <= outputBuffer.count else {
+				return nil // Safety: don't trim beyond allocated size
+			}
 			outputBuffer.count = totalDecompressed
 			return outputBuffer
 		}
