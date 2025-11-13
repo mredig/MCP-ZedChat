@@ -93,8 +93,11 @@ extension Threads {
 			
 			// Use streaming decompression
 			var srcPos = 0
+			var iterations = 0
+			let maxIterations = 10000 // Prevent infinite loops
 			
-			while srcPos < srcSize {
+			while srcPos < srcSize && iterations < maxIterations {
+				iterations += 1
 				// Check if we need to grow buffer BEFORE attempting to write
 				// Protect against underflow when outputBuffer.count < 1024
 				let availableSpace = outputBuffer.count > totalDecompressed ? outputBuffer.count - totalDecompressed : 0
@@ -117,22 +120,22 @@ extension Threads {
 					guard totalDecompressed < currentBufferSize else { return (-1, 0) }
 					guard currentSrcPos < srcSize else { return (-1, 0) }
 					
-					// Additional safety: ensure we have space for at least 1 byte
-					guard currentBufferSize > totalDecompressed else { return (-1, 0) }
-					guard srcSize > currentSrcPos else { return (-1, 0) }
-					
 					let remainingOutput = currentBufferSize - totalDecompressed
 					let remainingInput = srcSize - currentSrcPos
 					
+					// Validate pointer arithmetic won't overflow
+					guard totalDecompressed <= Int.max - MemoryLayout<UInt8>.stride else { return (-1, 0) }
+					guard currentSrcPos <= Int.max - MemoryLayout<UInt8>.stride else { return (-1, 0) }
+					
 					var outBuf = ZSTD_outBuffer(
 						dst: dstAddress.advanced(by: totalDecompressed),
-						size: remainingOutput,
+						size: size_t(remainingOutput),
 						pos: 0
 					)
 					
 					var inBuf = ZSTD_inBuffer(
 						src: srcAddress.advanced(by: currentSrcPos),
-						size: remainingInput,
+						size: size_t(remainingInput),
 						pos: 0
 					)
 					
@@ -144,8 +147,8 @@ extension Threads {
 					}
 					
 					// Validate return values are reasonable (not larger than buffer sizes)
-					guard outBuf.pos <= remainingOutput else { return (-1, 0) }
-					guard inBuf.pos <= remainingInput else { return (-1, 0) }
+					guard outBuf.pos <= size_t(remainingOutput) else { return (-1, 0) }
+					guard inBuf.pos <= size_t(remainingInput) else { return (-1, 0) }
 					
 					return (Int(outBuf.pos), Int(inBuf.pos))
 				}
@@ -170,8 +173,13 @@ extension Threads {
 				
 				// If no more input consumed and we haven't processed everything, we're stuck
 				if result.consumed == 0 && srcPos < srcSize {
-					break
+					return nil // Incomplete decompression
 				}
+			}
+			
+			// Check if we hit iteration limit
+			guard iterations < maxIterations else {
+				return nil // Decompression took too many iterations
 			}
 			
 			// Trim to actual size (final safety check)
