@@ -5,5 +5,5 @@ import MCPZedChatLib
 struct MCPZedChatMain: AsyncParsableCommand {
 	func run() async throws {
 		try await Entrypoint.run()
-    }
+	}
 }
