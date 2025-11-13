@@ -14,6 +14,12 @@ enum ServerHandlers {
 		await registerLifecycleHandlers(on: server)
 	}
 
+	static let dbAccessor = ZedThreadsInterface()
+	private static let encoder = JSONEncoder().with {
+		$0.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+		$0.dateEncodingStrategy = .iso8601
+	}
+
 	// MARK: - Tool Handlers
 
 	private static func registerToolHandlers(on server: Server) async {
@@ -204,20 +210,17 @@ enum ServerHandlers {
 
 	private static func handleZedListThreads() async -> CallTool.Result {
 		do {
-			let connection = try ZedThreadsDB.Connection()
-			let threads = try await connection.fetchAllThreads()
+			let threads = try await dbAccessor.fetchAllThreads()
+			async let consumableThreads = threads.asyncConcurrentMap { await $0.consumable }
 
-			var output = "Found \(threads.count) thread(s):\n\n"
-			for thread in threads {
-				output += "ID: \(thread.id)\n"
-				output += "Summary: \(thread.summary)\n"
-				output += "Updated: \(thread.updatedAt)\n"
-				output += "Type: \(thread.dataType)\n"
-				output += "---\n"
-			}
+			let output = await StructuredContentOutput(
+				metaData: .init(resultCount: threads.count),
+				content: consumableThreads)
+
+			let outputString = try encodeToJSONString(output)
 
 			return .init(
-				content: [.text(output)],
+				content: [.text(outputString)],
 				isError: false
 			)
 		} catch {
@@ -237,35 +240,24 @@ enum ServerHandlers {
 		}
 
 		do {
-			let connection = try ZedThreadsDB.Connection()
-			guard let thread = try await connection.fetchThread(id: threadId) else {
-				return .init(
-					content: [.text("Thread not found: \(threadId)")],
-					isError: true
-				)
+			guard let uuid = UUID(uuidString: threadId) else {
+				return .init(content: [.text("Error: invalid thread id")], isError: true)
 			}
 
-			var output = "Thread Details:\n\n"
-			output += "ID: \(thread.id)\n"
-			output += "Summary: \(thread.summary)\n"
-			output += "Updated: \(thread.updatedAt)\n"
-			output += "Type: \(thread.dataType)\n"
-			output += "Data size: \(thread.data.count) bytes\n"
+			let thread = try await dbAccessor.fetchThread(id: uuid)
 
-			// Try to decode the data as UTF-8 string if possible
-			if let dataString = String(data: thread.data, encoding: .utf8) {
-				output += "\nData content:\n\(dataString)\n"
-			}
+			let output = await StructuredContentOutput(
+				metaData: .init(summary: "Thread Details"),
+				content: thread.consumable)
+			let outputString = try encodeToJSONString(output)
 
 			return .init(
-				content: [.text(output)],
-				isError: false
-			)
+				content: [.text(outputString)],
+				isError: false)
 		} catch {
 			return .init(
 				content: [.text("Error fetching thread: \(error)")],
-				isError: true
-			)
+				isError: true)
 		}
 	}
 
@@ -278,26 +270,21 @@ enum ServerHandlers {
 		}
 
 		do {
-			let connection = try ZedThreadsDB.Connection()
-			let threads = try await connection.searchThreads(query: query)
+			let threadResults = try dbAccessor.searchThreadTitles(for: query)
+			async let consumableThreadResults = threadResults.asyncConcurrentMap { await $0.consumable }
 
-			var output = "Found \(threads.count) thread(s) matching '\(query)':\n\n"
-			for thread in threads {
-				output += "ID: \(thread.id)\n"
-				output += "Summary: \(thread.summary)\n"
-				output += "Updated: \(thread.updatedAt)\n"
-				output += "---\n"
-			}
+			let output = await StructuredContentOutput(
+				metaData: .init(summary: "Thread Titles Search Results", resultCount: threadResults.count),
+				content: consumableThreadResults)
+			let outputString = try encodeToJSONString(output)
 
 			return .init(
-				content: [.text(output)],
-				isError: false
-			)
+				content: [.text(outputString)],
+				isError: false)
 		} catch {
 			return .init(
 				content: [.text("Error searching threads: \(error)")],
-				isError: true
-			)
+				isError: true)
 		}
 	}
 
@@ -504,6 +491,28 @@ enum ServerHandlers {
 			}
 			return .init()
 		}
+	}
+
+	// MARK: - Output Structure
+
+	private struct StructuredContentOutput<Content: Codable & Sendable>: Codable, Sendable {
+		let metaData: Metadata?
+		let content: Content
+
+		struct Metadata: Codable, Sendable {
+			let summary: String?
+			let resultCount: Int?
+
+			init(summary: String? = nil, resultCount: Int? = nil) {
+				self.summary = summary
+				self.resultCount = resultCount
+			}
+		}
+	}
+
+	private static func encodeToJSONString<E: Encodable>(_ encodable: E) throws -> String {
+		let data = try encoder.encode(encodable)
+		return String(decoding: data, as: UTF8.self)
 	}
 }
 
