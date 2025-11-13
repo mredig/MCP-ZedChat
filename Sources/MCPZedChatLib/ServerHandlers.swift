@@ -5,21 +5,22 @@ import Foundation
 /// ServerHandlers contains all MCP request handlers for tools, resources, and prompts
 enum ServerHandlers {
     private static let logger = Logger(label: "com.zedchat.mcp-handlers")
-    
+
     /// Register all handlers on the given server
     static func registerHandlers(on server: Server) async {
         await registerToolHandlers(on: server)
         await registerResourceHandlers(on: server)
         await registerPromptHandlers(on: server)
+        await registerLifecycleHandlers(on: server)
     }
-    
+
     // MARK: - Tool Handlers
-    
+
     private static func registerToolHandlers(on server: Server) async {
         // List available tools
         await server.withMethodHandler(ListTools.self) { _ in
             logger.debug("Listing tools")
-            
+
             let tools = [
                 Tool(
                     name: "echo",
@@ -67,14 +68,14 @@ enum ServerHandlers {
                     ])
                 )
             ]
-            
+
             return .init(tools: tools, nextCursor: nil)
         }
-        
+
         // Handle tool calls
         await server.withMethodHandler(CallTool.self) { params in
             logger.debug("Calling tool", metadata: ["tool": "\(params.name)"])
-            
+
             switch params.name {
             case "echo":
                 guard let message = params.arguments?["message"]?.stringValue else {
@@ -87,17 +88,17 @@ enum ServerHandlers {
                     content: [.text("Echo: \(message)")],
                     isError: false
                 )
-                
+
             case "calculate":
                 return handleCalculate(arguments: params.arguments)
-                
+
             case "timestamp":
                 let timestamp = ISO8601DateFormatter().string(from: Date())
                 return .init(
                     content: [.text(timestamp)],
                     isError: false
                 )
-                
+
             default:
                 return .init(
                     content: [.text("Unknown tool: \(params.name)")],
@@ -106,7 +107,7 @@ enum ServerHandlers {
             }
         }
     }
-    
+
     private static func handleCalculate(arguments: [String: Value]?) -> CallTool.Result {
         guard let operation = arguments?["operation"]?.stringValue,
               let aValue = arguments?["a"],
@@ -116,7 +117,7 @@ enum ServerHandlers {
                 isError: true
             )
         }
-        
+
         guard let a = aValue.numberValue,
               let b = bValue.numberValue else {
             return .init(
@@ -124,7 +125,7 @@ enum ServerHandlers {
                 isError: true
             )
         }
-        
+
         let result: Double
         switch operation {
         case "add":
@@ -147,20 +148,20 @@ enum ServerHandlers {
                 isError: true
             )
         }
-        
+
         return .init(
             content: [.text("\(result)")],
             isError: false
         )
     }
-    
+
     // MARK: - Resource Handlers
-    
+
     private static func registerResourceHandlers(on server: Server) async {
         // List available resources
         await server.withMethodHandler(ListResources.self) { _ in
             logger.debug("Listing resources")
-            
+
             let resources = [
                 Resource(
                     name: "Server Status",
@@ -181,14 +182,14 @@ enum ServerHandlers {
                     mimeType: "application/json"
                 )
             ]
-            
+
             return .init(resources: resources, nextCursor: nil)
         }
-        
+
         // Handle resource reads
         await server.withMethodHandler(ReadResource.self) { params in
             logger.debug("Reading resource", metadata: ["uri": "\(params.uri)"])
-            
+
             switch params.uri {
             case "zedchat://status":
                 let statusJson = """
@@ -202,20 +203,20 @@ enum ServerHandlers {
                 return .init(contents: [
                     .text(statusJson, uri: params.uri, mimeType: "application/json")
                 ])
-                
+
             case "zedchat://welcome":
                 let welcome = """
                 Welcome to MCP ZedChat Server!
-                
+
                 This is a Model Context Protocol server built with Swift.
                 It provides tools, resources, and prompts for AI interaction.
-                
+
                 Version: 1.0.0
                 """
                 return .init(contents: [
                     .text(welcome, uri: params.uri, mimeType: "text/plain")
                 ])
-                
+
             case "zedchat://config":
                 let configJson = """
                 {
@@ -233,35 +234,35 @@ enum ServerHandlers {
                 return .init(contents: [
                     .text(configJson, uri: params.uri, mimeType: "application/json")
                 ])
-                
+
             default:
                 throw MCPError.invalidParams("Unknown resource URI: \(params.uri)")
             }
         }
-        
+
         // Handle resource subscriptions
         await server.withMethodHandler(ResourceSubscribe.self) { params in
             logger.info("Client subscribed to resource", metadata: ["uri": "\(params.uri)"])
-            
+
             // In a real implementation, you would:
             // 1. Store the subscription for this client
             // 2. Send notifications when the resource changes
             // 3. Use server.sendNotification(...) to push updates
-            
+
             return .init()
         }
-        
+
         // Note: Resource unsubscribe handler not included as UnsubscribeResource
         // may not be available in the current MCP Swift SDK version
     }
-    
+
     // MARK: - Prompt Handlers
-    
+
     private static func registerPromptHandlers(on server: Server) async {
         // List available prompts
         await server.withMethodHandler(ListPrompts.self) { _ in
             logger.debug("Listing prompts")
-            
+
             let prompts = [
                 Prompt(
                     name: "greeting",
@@ -287,14 +288,14 @@ enum ServerHandlers {
                     ]
                 )
             ]
-            
+
             return .init(prompts: prompts, nextCursor: nil)
         }
-        
+
         // Handle prompt retrieval
         await server.withMethodHandler(GetPrompt.self) { params in
             logger.debug("Getting prompt", metadata: ["name": "\(params.name)"])
-            
+
             switch params.name {
             case "greeting":
                 let name = params.arguments?["name"]?.stringValue ?? "there"
@@ -304,12 +305,12 @@ enum ServerHandlers {
                     .user("I'd like to learn more about this MCP server.")
                 ]
                 return .init(description: description, messages: messages)
-                
+
             case "code-review":
                 guard let language = params.arguments?["language"]?.stringValue else {
                     throw MCPError.invalidParams("Missing required argument: language")
                 }
-                
+
                 let focus = params.arguments?["focus"]?.stringValue ?? "general code quality"
                 let description = "Code review session for \(language)"
                 let messages: [Prompt.Message] = [
@@ -317,12 +318,12 @@ enum ServerHandlers {
                     .assistant("I'm ready to review your \(language) code with a focus on \(focus). Please share the code you'd like me to review.")
                 ]
                 return .init(description: description, messages: messages)
-                
+
             case "debug-session":
                 guard let error = params.arguments?["error"]?.stringValue else {
                     throw MCPError.invalidParams("Missing required argument: error")
                 }
-                
+
                 let context = params.arguments?["context"]?.stringValue ?? "No additional context provided"
                 let description = "Debugging session"
                 let messages: [Prompt.Message] = [
@@ -332,10 +333,30 @@ enum ServerHandlers {
                     .assistant("Let me help you debug this issue. Can you provide more details about when this error occurs and what you've tried so far?")
                 ]
                 return .init(description: description, messages: messages)
-                
+
             default:
                 throw MCPError.invalidParams("Unknown prompt: \(params.name)")
             }
+        }
+    }
+
+    // MARK: - Lifecycle Handlers
+
+    private static func registerLifecycleHandlers(on server: Server) async {
+        // Handle shutdown request
+        await server.withMethodHandler(Shutdown.self) { [weak server] _ in
+            logger.info("Shutdown request received - preparing to exit")
+			Task {
+				guard let server else {
+					throw NSError(domain: "foo", code: 12)
+				}
+				try await Task.sleep(for: .milliseconds(100))
+				logger.info("Calling server.stop()")
+				await server.stop()
+				logger.info("Server stopped, calling _exit")
+				_exit(0)
+			}
+            return .init()
         }
     }
 }
@@ -346,30 +367,30 @@ extension Value {
     var numberValue: Double? {
         // Value in MCP SDK is ExpressibleByIntegerLiteral and ExpressibleByFloatLiteral
         // Try different approaches to extract numeric value
-        
+
         // First, check if it's directly convertible via mirror inspection
         let mirror = Mirror(reflecting: self)
-        
+
         // Check for integer value
         if let intVal = mirror.children.first(where: { $0.label == "integer" || $0.label == "int" })?.value as? Int {
             return Double(intVal)
         }
-        
+
         // Check for double/float value
         if let doubleVal = mirror.children.first(where: { $0.label == "number" || $0.label == "double" })?.value as? Double {
             return doubleVal
         }
-        
+
         // Try the accessor methods if they exist
         if let num = self.doubleValue {
             return num
         }
-        
+
         // Try string parsing as last resort
         if let str = self.stringValue, let num = Double(str) {
             return num
         }
-        
+
         return nil
     }
 }
