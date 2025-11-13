@@ -19,7 +19,7 @@ struct ZedThreadsInterface {
 	}
 
 	func fetchThread(id: UUID) async throws -> Threads {
-		try await db.threads.find(id.uuidString).unwrap("No thread found matching id \(id)")
+		try await db.threads.find(id.uuidString.lowercased()).unwrap("No thread found matching id \(id)")
 	}
 
 	func searchThreadTitles(for query: String) throws -> [Threads] {
