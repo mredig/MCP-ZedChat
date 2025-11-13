@@ -4,7 +4,7 @@ import Foundation
 
 /// Represents a complete Zed chat thread with all messages and metadata
 struct ZedThread: Codable, Sendable {
-	let title: String
+	let title: String?
 	let messages: [ZedThread.Message]
 	let updatedAt: String
 	let detailedSummary: String?
