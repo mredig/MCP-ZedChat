@@ -243,54 +243,56 @@ extension ZedThread.Message {
 
 // MARK: - Tool Results
 
-struct ToolResult: Codable, Sendable {
-	let content: [ToolResultContent]?
-	let isError: Bool?
-	
-	enum CodingKeys: String, CodingKey {
-		case content
-		case isError = "is_error"
-	}
-}
+extension ZedThread {
+	struct ToolResult: Codable, Sendable {
+		let content: [Content]?
+		let isError: Bool?
 
-enum ToolResultContent: Codable, Sendable {
-	case text(String)
-	case image(ImageContent)
-	
-	struct ImageContent: Codable, Sendable {
-		let data: String
-		let mimeType: String
-		
 		enum CodingKeys: String, CodingKey {
-			case data
-			case mimeType = "mime_type"
+			case content
+			case isError = "is_error"
 		}
-	}
-	
-	init(from decoder: Decoder) throws {
-		let container = try decoder.singleValueContainer()
-		let dict = try container.decode([String: AnyCodable].self)
-		
-		if let text = dict["text"]?.value as? String {
-			self = .text(text)
-		} else if let imageData = dict["image"] {
-			let image = try imageData.decode(ImageContent.self)
-			self = .image(image)
-		} else {
-			throw DecodingError.dataCorruptedError(
-				in: container,
-				debugDescription: "ToolResultContent must contain either 'text' or 'image' key"
-			)
-		}
-	}
-	
-	func encode(to encoder: Encoder) throws {
-		var container = encoder.singleValueContainer()
-		switch self {
-		case .text(let text):
-			try container.encode(["text": text])
-		case .image(let image):
-			try container.encode(["image": image])
+
+		enum Content: Codable, Sendable {
+			case text(String)
+			case image(ImageContent)
+
+			struct ImageContent: Codable, Sendable {
+				let data: String
+				let mimeType: String
+
+				enum CodingKeys: String, CodingKey {
+					case data
+					case mimeType = "mime_type"
+				}
+			}
+
+			init(from decoder: Decoder) throws {
+				let container = try decoder.singleValueContainer()
+				let dict = try container.decode([String: AnyCodable].self)
+
+				if let text = dict["text"]?.value as? String {
+					self = .text(text)
+				} else if let imageData = dict["image"] {
+					let image = try imageData.decode(ImageContent.self)
+					self = .image(image)
+				} else {
+					throw DecodingError.dataCorruptedError(
+						in: container,
+						debugDescription: "ToolResultContent must contain either 'text' or 'image' key"
+					)
+				}
+			}
+
+			func encode(to encoder: Encoder) throws {
+				var container = encoder.singleValueContainer()
+				switch self {
+				case .text(let text):
+					try container.encode(["text": text])
+				case .image(let image):
+					try container.encode(["image": image])
+				}
+			}
 		}
 	}
 }
