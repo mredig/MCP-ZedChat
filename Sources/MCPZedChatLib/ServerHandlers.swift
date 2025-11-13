@@ -15,12 +15,12 @@ enum ServerHandlers {
     }
 
     // MARK: - Tool Handlers
-
+    
     private static func registerToolHandlers(on server: Server) async {
         // List available tools
         await server.withMethodHandler(ListTools.self) { _ in
             logger.debug("Listing tools")
-
+            
             let tools = [
                 Tool(
                     name: "echo",
@@ -66,6 +66,42 @@ enum ServerHandlers {
                         "type": "object",
                         "properties": .object([:])
                     ])
+                ),
+                Tool(
+                    name: "zed-list-threads",
+                    description: "List all Zed chat threads from the threads database",
+                    inputSchema: .object([
+                        "type": "object",
+                        "properties": .object([:])
+                    ])
+                ),
+                Tool(
+                    name: "zed-get-thread",
+                    description: "Get a specific Zed chat thread by ID",
+                    inputSchema: .object([
+                        "type": "object",
+                        "properties": .object([
+                            "id": .object([
+                                "type": "string",
+                                "description": "The thread ID"
+                            ])
+                        ]),
+                        "required": .array([.string("id")])
+                    ])
+                ),
+                Tool(
+                    name: "zed-search-threads",
+                    description: "Search Zed chat threads by summary text",
+                    inputSchema: .object([
+                        "type": "object",
+                        "properties": .object([
+                            "query": .object([
+                                "type": "string",
+                                "description": "Search query to match against thread summaries"
+                            ])
+                        ]),
+                        "required": .array([.string("query")])
+                    ])
                 )
             ]
 
@@ -98,7 +134,16 @@ enum ServerHandlers {
                     content: [.text(timestamp)],
                     isError: false
                 )
-
+                
+            case "zed-list-threads":
+                return await handleZedListThreads()
+                
+            case "zed-get-thread":
+                return await handleZedGetThread(arguments: params.arguments)
+                
+            case "zed-search-threads":
+                return await handleZedSearchThreads(arguments: params.arguments)
+                
             default:
                 return .init(
                     content: [.text("Unknown tool: \(params.name)")],
@@ -154,7 +199,108 @@ enum ServerHandlers {
             isError: false
         )
     }
-
+    
+    // MARK: - Zed Threads Tool Handlers
+    
+    private static func handleZedListThreads() async -> CallTool.Result {
+        do {
+            let connection = try ZedThreadsDB.Connection()
+            let threads = try await connection.fetchAllThreads()
+            
+            var output = "Found \(threads.count) thread(s):\n\n"
+            for thread in threads {
+                output += "ID: \(thread.id)\n"
+                output += "Summary: \(thread.summary)\n"
+                output += "Updated: \(thread.updatedAt)\n"
+                output += "Type: \(thread.dataType)\n"
+                output += "---\n"
+            }
+            
+            return .init(
+                content: [.text(output)],
+                isError: false
+            )
+        } catch {
+            return .init(
+                content: [.text("Error listing threads: \(error)")],
+                isError: true
+            )
+        }
+    }
+    
+    private static func handleZedGetThread(arguments: [String: Value]?) async -> CallTool.Result {
+        guard let threadId = arguments?["id"]?.stringValue else {
+            return .init(
+                content: [.text("Error: Missing 'id' parameter")],
+                isError: true
+            )
+        }
+        
+        do {
+            let connection = try ZedThreadsDB.Connection()
+            guard let thread = try await connection.fetchThread(id: threadId) else {
+                return .init(
+                    content: [.text("Thread not found: \(threadId)")],
+                    isError: true
+                )
+            }
+            
+            var output = "Thread Details:\n\n"
+            output += "ID: \(thread.id)\n"
+            output += "Summary: \(thread.summary)\n"
+            output += "Updated: \(thread.updatedAt)\n"
+            output += "Type: \(thread.dataType)\n"
+            output += "Data size: \(thread.data.count) bytes\n"
+            
+            // Try to decode the data as UTF-8 string if possible
+            if let dataString = String(data: thread.data, encoding: .utf8) {
+                output += "\nData content:\n\(dataString)\n"
+            }
+            
+            return .init(
+                content: [.text(output)],
+                isError: false
+            )
+        } catch {
+            return .init(
+                content: [.text("Error fetching thread: \(error)")],
+                isError: true
+            )
+        }
+    }
+    
+    private static func handleZedSearchThreads(arguments: [String: Value]?) async -> CallTool.Result {
+        guard let query = arguments?["query"]?.stringValue else {
+            return .init(
+                content: [.text("Error: Missing 'query' parameter")],
+                isError: true
+            )
+        }
+        
+        do {
+            let connection = try ZedThreadsDB.Connection()
+            let threads = try await connection.searchThreads(query: query)
+            
+            var output = "Found \(threads.count) thread(s) matching '\(query)':\n\n"
+            for thread in threads {
+                output += "ID: \(thread.id)\n"
+                output += "Summary: \(thread.summary)\n"
+                output += "Updated: \(thread.updatedAt)\n"
+                output += "---\n"
+            }
+            
+            return .init(
+                content: [.text(output)],
+                isError: false
+            )
+        } catch {
+            return .init(
+                content: [.text("Error searching threads: \(error)")],
+                isError: true
+            )
+        }
+    }
+    
     // MARK: - Resource Handlers
 
     private static func registerResourceHandlers(on server: Server) async {
