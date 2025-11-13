@@ -26,11 +26,15 @@ let package = Package(
         // Swift Logging
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.6.2"),
+		.package(url: "https://github.com/Lighter-swift/Lighter.git", from: "1.4.12"),
+		.package(url: "https://github.com/mredig/SwiftPizzaSnips.git", from: "0.4.37"),
     ],
     targets: [
 		.target(
 			name: "MCPZedChatLib",
 			dependencies: [
+				.product(name: "Lighter", package: "Lighter"),
+				"SwiftPizzaSnips",
 				.product(name: "MCP", package: "swift-sdk"),
 				.product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
 				.product(name: "Logging", package: "swift-log"),
