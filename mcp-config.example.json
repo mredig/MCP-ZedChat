@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "zedchat": {
+      "command": "/path/to/MCP-ZedChat/.build/debug/mcp-zedchat",
+      "args": [],
+      "env": {}
+    }
+  }
+}
