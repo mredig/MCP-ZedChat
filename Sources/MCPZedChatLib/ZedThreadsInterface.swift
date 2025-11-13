@@ -86,10 +86,21 @@ extension Threads {
 			let srcSize = compressedData.count
 			
 			while srcPos < srcSize {
-				let currentBufferSize = outputBuffer.count
-				let result = outputBuffer.withUnsafeMutableBytes { (outputPtr: UnsafeMutableRawBufferPointer) -> Int in
-					guard let dstAddress = outputPtr.baseAddress else { return 0 }
+				// Check if we need to grow buffer BEFORE attempting to write
+				if totalDecompressed >= outputBuffer.count - 1024 {
+					outputBuffer.count = outputBuffer.count * 2
+				}
 				
+				let currentBufferSize = outputBuffer.count
+				let currentSrcPos = srcPos // Capture before closure to avoid mutation
+				
+				let result = outputBuffer.withUnsafeMutableBytes { (outputPtr: UnsafeMutableRawBufferPointer) -> (written: Int, consumed: Int) in
+					guard let dstAddress = outputPtr.baseAddress else { return (-1, 0) }
+					
+					// Bounds check: ensure we're not advancing beyond allocated memory
+					guard totalDecompressed < currentBufferSize else { return (-1, 0) }
+					guard currentSrcPos < srcSize else { return (-1, 0) }
+					
 					var outBuf = ZSTD_outBuffer(
 						dst: dstAddress.advanced(by: totalDecompressed),
 						size: currentBufferSize - totalDecompressed,
@@ -97,8 +108,8 @@ extension Threads {
 					)
 					
 					var inBuf = ZSTD_inBuffer(
-						src: srcAddress.advanced(by: srcPos),
-						size: srcSize - srcPos,
+						src: srcAddress.advanced(by: currentSrcPos),
+						size: srcSize - currentSrcPos,
 						pos: 0
 					)
 					
@@ -106,26 +117,21 @@ extension Threads {
 					
 					// Check for error
 					if ZSTD_isError(ret) != 0 {
-						return -1
+						return (-1, 0)
 					}
 					
-					srcPos += inBuf.pos
-					return Int(outBuf.pos)
+					return (Int(outBuf.pos), Int(inBuf.pos))
 				}
 				
-				if result < 0 {
+				if result.written < 0 {
 					return nil
 				}
 				
-				totalDecompressed += result
+				totalDecompressed += result.written
+				srcPos += result.consumed
 				
-				// If we're out of output space, grow the buffer
-				if totalDecompressed >= outputBuffer.count - 1024 {
-					outputBuffer.count = outputBuffer.count * 2
-				}
-				
-				// If no more input consumed, we're done or stuck
-				if result == 0 && srcPos < srcSize {
+				// If no more input consumed and we haven't processed everything, we're stuck
+				if result.consumed == 0 && srcPos < srcSize {
 					break
 				}
 			}
