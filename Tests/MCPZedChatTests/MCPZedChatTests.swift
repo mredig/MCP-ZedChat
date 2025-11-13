@@ -1,7 +1,6 @@
 import XCTest
 import MCP
 import Logging
-//@testable import MCPZedChat
 @testable import MCPZedChatLib
 
 final class MCPZedChatTests: XCTestCase {
@@ -160,44 +159,44 @@ final class MCPZedChatTests: XCTestCase {
         await server.stop()
     }
     
-//    func testReadResource() async throws {
-//        let server = createTestServer()
-//        await ServerHandlers.registerHandlers(on: server)
-//        
-//        let transport = InMemoryTransport()
-//        try await server.start(transport: transport)
-//        
-//        let client = Client(name: "TestClient", version: "1.0.0")
-//        try await client.connect(transport: transport)
-//        
-//        // Test reading status resource
-//        let statusContents = try await client.readResource(uri: "zedchat://status")
-//        XCTAssertEqual(statusContents.count, 1, "Should have one content item")
-//
-//		if
-//			let firstStatusContent = statusContents.first,
-//			case .text(let text, uri: let _, mimeType: let mimeType) = firstStatusContent {
-//
-//			XCTAssertEqual(mimeType, "application/json")
-//            XCTAssertTrue(text.contains("status"), "Status should contain 'status' field")
-//            XCTAssertTrue(text.contains("version"), "Status should contain 'version' field")
-//        } else {
-//            XCTFail("Expected text content")
-//        }
-//        
-//        // Test reading welcome resource
-//        let welcomeContents = try await client.readResource(uri: "zedchat://welcome")
-//        XCTAssertEqual(welcomeContents.count, 1, "Should have one content item")
-//        
-////		if case .text(let text, uri: let _, mimeType: let mimeType) = welcomeContents.first {
-////            XCTAssertEqual(mimeType, "text/plain")
-////            XCTAssertTrue(text.contains("Welcome"), "Welcome should contain greeting")
-////        } else {
-////            XCTFail("Expected text content")
-////        }
-//        
-//        await server.stop()
-//    }
+    func testReadResource() async throws {
+        let server = createTestServer()
+        await ServerHandlers.registerHandlers(on: server)
+        
+        let transport = InMemoryTransport()
+        try await server.start(transport: transport)
+        
+        let client = Client(name: "TestClient", version: "1.0.0")
+        try await client.connect(transport: transport)
+        
+        // Test reading status resource
+        let statusContents = try await client.readResource(uri: "zedchat://status")
+        XCTAssertEqual(statusContents.count, 1, "Should have one content item")
+
+		if let firstStatusContent = statusContents.first, let text = firstStatusContent.text {
+			let mimeType = firstStatusContent.mimeType
+
+			XCTAssertEqual(mimeType, "application/json")
+            XCTAssertTrue(text.contains("status"), "Status should contain 'status' field")
+            XCTAssertTrue(text.contains("version"), "Status should contain 'version' field")
+        } else {
+            XCTFail("Expected text content")
+        }
+        
+        // Test reading welcome resource
+        let welcomeContents = try await client.readResource(uri: "zedchat://welcome")
+        XCTAssertEqual(welcomeContents.count, 1, "Should have one content item")
+
+		if let firstWelcome = welcomeContents.first, let text = firstWelcome.text {
+			let mimeType = firstWelcome.mimeType
+			XCTAssertEqual(mimeType, "text/plain")
+			XCTAssertTrue(text.contains("Welcome"), "Welcome should contain greeting")
+		} else {
+            XCTFail("Expected text content")
+        }
+        
+        await server.stop()
+    }
     
     // MARK: - Prompt Tests
     
