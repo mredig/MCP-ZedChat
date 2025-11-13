@@ -142,7 +142,8 @@ enum ServerHandlers {
 				)
 
 			case "zed-list-threads":
-				return await handleZedListThreads()
+				let limit = params.integers.limit
+				return await handleZedListThreads(limit: limit)
 
 			case "zed-get-thread":
 				return await handleZedGetThread(arguments: params.arguments)
@@ -208,9 +209,9 @@ enum ServerHandlers {
 
 	// MARK: - Zed Threads Tool Handlers
 
-	private static func handleZedListThreads() async -> CallTool.Result {
+	private static func handleZedListThreads(limit: Int?) async -> CallTool.Result {
 		do {
-			let threads = try await dbAccessor.fetchAllThreads()
+			let threads = try await dbAccessor.fetchAllThreads(limit: limit)
 			async let consumableThreads = threads.asyncConcurrentMap { await $0.consumable }
 
 			let output = await StructuredContentOutput(
@@ -240,11 +241,7 @@ enum ServerHandlers {
 		}
 
 		do {
-			guard let uuid = UUID(uuidString: threadId) else {
-				return .init(content: [.text("Error: invalid thread id")], isError: true)
-			}
-
-			let thread = try await dbAccessor.fetchThread(id: uuid)
+			let thread = try await dbAccessor.fetchThread(id: threadId)
 
 			let output = await StructuredContentOutput(
 				metaData: .init(summary: "Thread Details"),
