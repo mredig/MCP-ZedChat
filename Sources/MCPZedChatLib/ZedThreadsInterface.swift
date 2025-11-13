@@ -24,7 +24,7 @@ struct ZedThreadsInterface {
 
 	func searchThreadTitles(for query: String) throws -> [Threads] {
 		try db.threads.filter {
-			$0.summary.contains(query)
+			$0.summary.lowercased().contains(query)
 		}
 	}
 }
