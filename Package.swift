@@ -28,12 +28,24 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.6.2"),
     ],
     targets: [
+		.target(
+			name: "MCPZedChatLib",
+			dependencies: [
+				.product(name: "MCP", package: "swift-sdk"),
+				.product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
+				.product(name: "Logging", package: "swift-log"),
+			],
+			swiftSettings: [
+				.enableUpcomingFeature("StrictConcurrency")
+			]
+		),
         .executableTarget(
             name: "MCPZedChat",
             dependencies: [
-                .product(name: "MCP", package: "swift-sdk"),
-                .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
-                .product(name: "Logging", package: "swift-log"),
+				"MCPZedChatLib",
+//                .product(name: "MCP", package: "swift-sdk"),
+//                .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
+//                .product(name: "Logging", package: "swift-log"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             path: "Sources/MCPZedChat",
@@ -44,7 +56,7 @@ let package = Package(
         .testTarget(
             name: "MCPZedChatTests",
             dependencies: [
-                "MCPZedChat",
+				.targetItem(name: "MCPZedChatLib", condition: nil),
                 .product(name: "MCP", package: "swift-sdk"),
             ],
             path: "Tests/MCPZedChatTests"
