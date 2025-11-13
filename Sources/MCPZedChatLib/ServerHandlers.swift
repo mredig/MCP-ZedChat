@@ -167,13 +167,14 @@ enum ServerHandlers {
 
 				case "zed-list-threads":
 					let limit = params.integers.limit
-					return await handleZedListThreads(limit: limit)
+					return try await handleZedListThreads(limit: limit)
 
 				case "zed-get-thread":
-					return await handleZedGetThread(arguments: params.arguments)
+					return try await handleZedGetThread(arguments: params.arguments)
 
 				case "zed-search-threads":
-					return await handleZedSearchThreads(arguments: params.arguments)
+					let limit = params.integers.limit
+					return try await handleZedSearchThreads(arguments: params.arguments, limit: limit)
 
 				case "zed-search-thread-content":
 					guard let query = params.strings.query else { throw .contentError(message: "Missing query argument") }
@@ -242,7 +243,7 @@ enum ServerHandlers {
 
 	// MARK: - Zed Threads Tool Handlers
 
-	private static func handleZedListThreads(limit: Int?) async -> CallTool.Result {
+	private static func handleZedListThreads(limit: Int?) async throws(ContentError) -> CallTool.Result {
 		do {
 			let threads = try await dbAccessor.fetchAllThreads(limit: limit)
 			async let consumableThreads = threads.asyncConcurrentMap { await $0.consumable }
@@ -251,21 +252,13 @@ enum ServerHandlers {
 				metaData: .init(resultCount: threads.count),
 				content: consumableThreads)
 
-			let outputString = try encodeToJSONString(output)
-
-			return .init(
-				content: [.text(outputString)],
-				isError: false
-			)
+			return output.toResult()
 		} catch {
-			return .init(
-				content: [.text("Error listing threads: \(error)")],
-				isError: true
-			)
+			throw .other(error)
 		}
 	}
 
-	private static func handleZedGetThread(arguments: [String: Value]?) async -> CallTool.Result {
+	private static func handleZedGetThread(arguments: [String: Value]?) async throws(ContentError) -> CallTool.Result {
 		guard let threadId = arguments?["id"]?.stringValue else {
 			return .init(
 				content: [.text("Error: Missing 'id' parameter")],
@@ -278,20 +271,15 @@ enum ServerHandlers {
 
 			let output = await StructuredContentOutput(
 				metaData: .init(summary: "Thread Details"),
-				content: thread.consumableWithContent)
-			let outputString = try encodeToJSONString(output)
+				content: [thread.consumableWithContent].compactMap(\.self))
 
-			return .init(
-				content: [.text(outputString)],
-				isError: false)
+			return output.toResult()
 		} catch {
-			return .init(
-				content: [.text("Error fetching thread: \(error)")],
-				isError: true)
+			throw .other(error)
 		}
 	}
 
-	private static func handleZedSearchThreads(arguments: [String: Value]?) async -> CallTool.Result {
+	private static func handleZedSearchThreads(arguments: [String: Value]?, limit: Int?) async throws(ContentError) -> CallTool.Result {
 		guard let query = arguments?["query"]?.stringValue else {
 			return .init(
 				content: [.text("Error: Missing 'query' parameter")],
@@ -300,21 +288,16 @@ enum ServerHandlers {
 		}
 
 		do {
-			let threadResults = try dbAccessor.searchThreadTitles(for: query)
+			let threadResults = try dbAccessor.searchThreadTitles(for: query, limit: limit)
 			async let consumableThreadResults = threadResults.asyncConcurrentMap { await $0.consumable }
 
 			let output = await StructuredContentOutput(
 				metaData: .init(summary: "Thread Titles Search Results", resultCount: threadResults.count),
 				content: consumableThreadResults)
-			let outputString = try encodeToJSONString(output)
 
-			return .init(
-				content: [.text(outputString)],
-				isError: false)
+			return output.toResult()
 		} catch {
-			return .init(
-				content: [.text("Error searching threads: \(error)")],
-				isError: true)
+			throw .other(error)
 		}
 	}
 
@@ -327,11 +310,8 @@ enum ServerHandlers {
 			let output = await StructuredContentOutput(
 				metaData: .init(summary: "Thread Content Search Results", resultCount: threadResults.count),
 				content: consumableThreadResults)
-			let outputString = try encodeToJSONString(output)
 
-			return .init(
-				content: [.text(outputString)],
-				isError: false)
+			return output.toResult()
 		} catch {
 			throw .other(error)
 		}
@@ -547,7 +527,7 @@ enum ServerHandlers {
 
 	private struct StructuredContentOutput<Content: Codable & Sendable>: Codable, Sendable {
 		let metaData: Metadata?
-		let content: Content
+		let content: [Content]
 
 		struct Metadata: Codable, Sendable {
 			let summary: String?
@@ -558,11 +538,27 @@ enum ServerHandlers {
 				self.resultCount = resultCount
 			}
 		}
-	}
 
-	private static func encodeToJSONString<E: Encodable>(_ encodable: E) throws -> String {
-		let data = try encoder.encode(encodable)
-		return String(decoding: data, as: UTF8.self)
+		func toResult() -> CallTool.Result {
+			var accumulator: [Tool.Content] = []
+
+			if let metaData {
+				let jsonString = try? Self.encodeToJSONString(metaData)
+				jsonString.map { accumulator.append(.text($0)) }
+			}
+
+			for item in content {
+				let jsonString = try? Self.encodeToJSONString(item)
+				jsonString.map { accumulator.append(.text($0)) }
+			}
+
+			return .init(content: accumulator, isError: false)
+		}
+
+		private static func encodeToJSONString<E: Encodable>(_ encodable: E) throws -> String {
+			let data = try encoder.encode(encodable)
+			return String(decoding: data, as: UTF8.self)
+		}
 	}
 
 	enum ContentError: Error {

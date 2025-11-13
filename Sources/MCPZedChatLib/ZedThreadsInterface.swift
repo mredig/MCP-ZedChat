@@ -16,16 +16,16 @@ struct ZedThreadsInterface {
 	}
 
 	func fetchAllThreads(limit: Int?) async throws -> [Threads] {
-		try await db.threads.fetch(limit: limit).sorted(by: { $0.updatedAt > $1.updatedAt })
+		try await db.threads.fetch(limit: limit, orderBy: \.updatedAt, .descending)
 	}
 
 	func fetchThread(id: String) async throws -> Threads {
 		try await db.threads.find(id).unwrap("No thread found matching id \(id)")
 	}
 
-	func searchThreadTitles(for query: String) throws -> [Threads] {
-		try db.threads.filter {
-			$0.summary.lowercased().contains(query)
+	func searchThreadTitles(for query: String, limit: Int?) throws -> [Threads] {
+		try db.threads.fetch(limit: limit, orderBy: \.updatedAt, .descending) {
+			$0.summary.contains(query, caseInsensitive: true)
 		}
 	}
 
