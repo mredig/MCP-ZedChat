@@ -78,7 +78,12 @@ enum ServerHandlers {
 					description: "List all Zed chat threads from the threads database",
 					inputSchema: .object([
 						"type": "object",
-						"properties": .object([:])
+						"properties": .object([
+							"limit": .object([
+								"type": "integer",
+								"description": "Limit result count"
+							])
+						])
 					])
 				),
 				Tool(
@@ -104,6 +109,24 @@ enum ServerHandlers {
 							"query": .object([
 								"type": "string",
 								"description": "Search query to match against thread summaries"
+							]),
+							"limit": .object([
+								"type": "integer",
+								"description": "Limit result count"
+							])
+						]),
+						"required": .array([.string("query")])
+					])
+				),
+				Tool(
+					name: "zed-search-thread-content",
+					description: "Search Zed chat threads by decoding their thread content and searching inside",
+					inputSchema: .object([
+						"type": "object",
+						"properties": .object([
+							"query": .object([
+								"type": "string",
+								"description": "Search query to match against thread summaries"
 							])
 						]),
 						"required": .array([.string("query")])
@@ -118,44 +141,54 @@ enum ServerHandlers {
 		await server.withMethodHandler(CallTool.self) { params in
 			logger.debug("Calling tool", metadata: ["tool": "\(params.name)"])
 
-			switch params.name {
-			case "echo":
-				guard let message = params.arguments?["message"]?.stringValue else {
+			do throws(ContentError) {
+				switch params.name {
+				case "echo":
+					guard let message = params.arguments?["message"]?.stringValue else {
+						return .init(
+							content: [.text("Error: Missing 'message' parameter")],
+							isError: true
+						)
+					}
 					return .init(
-						content: [.text("Error: Missing 'message' parameter")],
-						isError: true
+						content: [.text("Echo: \(message)")],
+						isError: false
 					)
+
+				case "calculate":
+					return handleCalculate(arguments: params.arguments)
+
+				case "timestamp":
+					let timestamp = ISO8601DateFormatter().string(from: Date())
+					return .init(
+						content: [.text(timestamp)],
+						isError: false
+					)
+
+				case "zed-list-threads":
+					let limit = params.integers.limit
+					return await handleZedListThreads(limit: limit)
+
+				case "zed-get-thread":
+					return await handleZedGetThread(arguments: params.arguments)
+
+				case "zed-search-threads":
+					return await handleZedSearchThreads(arguments: params.arguments)
+
+				case "zed-search-thread-content":
+					guard let query = params.strings.query else { throw .contentError(message: "Missing query argument") }
+					return try await handleZedSearchThreadsContent(query: query, limit: params.integers.limit)
+				default:
+					throw .contentError(message: "Unknown tool")
 				}
-				return .init(
-					content: [.text("Echo: \(message)")],
-					isError: false
-				)
-
-			case "calculate":
-				return handleCalculate(arguments: params.arguments)
-
-			case "timestamp":
-				let timestamp = ISO8601DateFormatter().string(from: Date())
-				return .init(
-					content: [.text(timestamp)],
-					isError: false
-				)
-
-			case "zed-list-threads":
-				let limit = params.integers.limit
-				return await handleZedListThreads(limit: limit)
-
-			case "zed-get-thread":
-				return await handleZedGetThread(arguments: params.arguments)
-
-			case "zed-search-threads":
-				return await handleZedSearchThreads(arguments: params.arguments)
-
-			default:
-				return .init(
-					content: [.text("Unknown tool: \(params.name)")],
-					isError: true
-				)
+			} catch {
+				switch error {
+				case .contentError(message: let message):
+					let errorMessage = "Error performing \(params.name): \(message ?? "Content Error")"
+					return .init(content: [.text(errorMessage)], isError: true)
+				case .other(let error):
+					return .init(content: [.text("Error performing \(params.name): \(error)")], isError: true)
+				}
 			}
 		}
 	}
@@ -284,6 +317,26 @@ enum ServerHandlers {
 				isError: true)
 		}
 	}
+
+
+	private static func handleZedSearchThreadsContent(query: String, limit: Int?) async throws(ContentError) -> CallTool.Result {
+		do {
+			let threadResults = try await dbAccessor.searchThreadContent(for: query, limit: limit)
+			async let consumableThreadResults = threadResults.asyncConcurrentMap { await $0.consumableWithContent }
+
+			let output = await StructuredContentOutput(
+				metaData: .init(summary: "Thread Content Search Results", resultCount: threadResults.count),
+				content: consumableThreadResults)
+			let outputString = try encodeToJSONString(output)
+
+			return .init(
+				content: [.text(outputString)],
+				isError: false)
+		} catch {
+			throw .other(error)
+		}
+	}
+
 
 	// MARK: - Resource Handlers
 
@@ -510,6 +563,11 @@ enum ServerHandlers {
 	private static func encodeToJSONString<E: Encodable>(_ encodable: E) throws -> String {
 		let data = try encoder.encode(encodable)
 		return String(decoding: data, as: UTF8.self)
+	}
+
+	enum ContentError: Error {
+		case contentError(message: String?)
+		case other(Error)
 	}
 }
 

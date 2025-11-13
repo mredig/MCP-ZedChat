@@ -28,6 +28,21 @@ struct ZedThreadsInterface {
 			$0.summary.lowercased().contains(query)
 		}
 	}
+
+	func searchThreadContent(for query: String, limit: Int?) async throws -> [Threads] {
+		let allThreads = try await fetchAllThreads(limit: nil)
+		let regex = Regex {
+			query
+		}.ignoresCase()
+
+		let matchingThreads = await allThreads.asyncFilter { thread in
+			let content = await thread.consumableWithContent
+
+			return content?.content?.firstMatch(of: regex) != nil
+		}
+
+		return matchingThreads
+	}
 }
 
 extension Threads {
