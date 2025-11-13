@@ -67,37 +67,72 @@ extension Threads {
 	}
 	
 	private func decompressZstd(_ compressedData: Data) -> Data? {
+		// Create decompression context
+		guard let dctx = ZSTD_createDCtx() else {
+			return nil
+		}
+		defer { ZSTD_freeDCtx(dctx) }
+		
 		return compressedData.withUnsafeBytes { (compressedPtr: UnsafeRawBufferPointer) -> Data? in
-			guard let baseAddress = compressedPtr.baseAddress else { return nil }
+			guard let srcAddress = compressedPtr.baseAddress else { return nil }
 			
-			// Get decompressed size
-			let decompressedSize = ZSTD_getFrameContentSize(baseAddress, compressedData.count)
+			// Start with a reasonable buffer size
+			let initialBufferSize = max(compressedData.count * 3, 4096)
+			var outputBuffer = Data(count: initialBufferSize)
+			var totalDecompressed = 0
 			
-			guard decompressedSize != ZSTD_CONTENTSIZE_ERROR,
-				  decompressedSize != ZSTD_CONTENTSIZE_UNKNOWN else {
-				return nil
-			}
+			// Use streaming decompression
+			var srcPos = 0
+			let srcSize = compressedData.count
 			
-			// Allocate buffer for decompressed data
-			var decompressedData = Data(count: Int(decompressedSize))
-			
-			let actualSize = decompressedData.withUnsafeMutableBytes { (decompressedPtr: UnsafeMutableRawBufferPointer) -> Int in
-				guard let destAddress = decompressedPtr.baseAddress else { return 0 }
+			while srcPos < srcSize {
+				let currentBufferSize = outputBuffer.count
+				let result = outputBuffer.withUnsafeMutableBytes { (outputPtr: UnsafeMutableRawBufferPointer) -> Int in
+					guard let dstAddress = outputPtr.baseAddress else { return 0 }
 				
-				return ZSTD_decompress(
-					destAddress,
-					Int(decompressedSize),
-					baseAddress,
-					compressedData.count
-				)
+					var outBuf = ZSTD_outBuffer(
+						dst: dstAddress.advanced(by: totalDecompressed),
+						size: currentBufferSize - totalDecompressed,
+						pos: 0
+					)
+					
+					var inBuf = ZSTD_inBuffer(
+						src: srcAddress.advanced(by: srcPos),
+						size: srcSize - srcPos,
+						pos: 0
+					)
+					
+					let ret = ZSTD_decompressStream(dctx, &outBuf, &inBuf)
+					
+					// Check for error
+					if ZSTD_isError(ret) != 0 {
+						return -1
+					}
+					
+					srcPos += inBuf.pos
+					return Int(outBuf.pos)
+				}
+				
+				if result < 0 {
+					return nil
+				}
+				
+				totalDecompressed += result
+				
+				// If we're out of output space, grow the buffer
+				if totalDecompressed >= outputBuffer.count - 1024 {
+					outputBuffer.count = outputBuffer.count * 2
+				}
+				
+				// If no more input consumed, we're done or stuck
+				if result == 0 && srcPos < srcSize {
+					break
+				}
 			}
 			
-			// Check for errors
-			if ZSTD_isError(actualSize) != 0 {
-				return nil
-			}
-			
-			return decompressedData
+			// Trim to actual size
+			outputBuffer.count = totalDecompressed
+			return outputBuffer
 		}
 	}
 }
