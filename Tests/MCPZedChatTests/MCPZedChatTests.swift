@@ -17,12 +17,12 @@ final class MCPZedChatTests: XCTestCase {
         let server = createTestServer()
         await ServerHandlers.registerHandlers(on: server)
         
-        let transport = InMemoryTransport()
-        try await server.start(transport: transport)
+        let (serverTransport, clientTransport) = await InMemoryTransport.createConnectedPair()
+        try await server.start(transport: serverTransport)
         
         // Create a client and connect
         let client = Client(name: "TestClient", version: "1.0.0")
-        try await client.connect(transport: transport)
+        try await client.connect(transport: clientTransport)
         
         // Test echo tool
         let (content, isError) = try await client.callTool(
@@ -46,11 +46,11 @@ final class MCPZedChatTests: XCTestCase {
         let server = createTestServer()
         await ServerHandlers.registerHandlers(on: server)
         
-        let transport = InMemoryTransport()
-        try await server.start(transport: transport)
+        let (serverTransport, clientTransport) = await InMemoryTransport.createConnectedPair()
+        try await server.start(transport: serverTransport)
         
         let client = Client(name: "TestClient", version: "1.0.0")
-        try await client.connect(transport: transport)
+        try await client.connect(transport: clientTransport)
         
         // Test addition
         let (addContent, addError) = try await client.callTool(
@@ -110,11 +110,11 @@ final class MCPZedChatTests: XCTestCase {
         let server = createTestServer()
         await ServerHandlers.registerHandlers(on: server)
         
-        let transport = InMemoryTransport()
-        try await server.start(transport: transport)
+        let (serverTransport, clientTransport) = await InMemoryTransport.createConnectedPair()
+        try await server.start(transport: serverTransport)
         
         let client = Client(name: "TestClient", version: "1.0.0")
-        try await client.connect(transport: transport)
+        try await client.connect(transport: clientTransport)
         
         let (content, isError) = try await client.callTool(
             name: "timestamp",
@@ -141,11 +141,11 @@ final class MCPZedChatTests: XCTestCase {
         let server = createTestServer()
         await ServerHandlers.registerHandlers(on: server)
         
-        let transport = InMemoryTransport()
-        try await server.start(transport: transport)
+        let (serverTransport, clientTransport) = await InMemoryTransport.createConnectedPair()
+        try await server.start(transport: serverTransport)
         
         let client = Client(name: "TestClient", version: "1.0.0")
-        try await client.connect(transport: transport)
+        try await client.connect(transport: clientTransport)
         
         let (resources, _) = try await client.listResources()
         
@@ -162,12 +162,12 @@ final class MCPZedChatTests: XCTestCase {
     func testReadResource() async throws {
         let server = createTestServer()
         await ServerHandlers.registerHandlers(on: server)
-        
-        let transport = InMemoryTransport()
-        try await server.start(transport: transport)
-        
+
+        let (serverTransport, clientTransport) = await InMemoryTransport.createConnectedPair()
+        try await server.start(transport: serverTransport)
+
         let client = Client(name: "TestClient", version: "1.0.0")
-        try await client.connect(transport: transport)
+        try await client.connect(transport: clientTransport)
         
         // Test reading status resource
         let statusContents = try await client.readResource(uri: "zedchat://status")
@@ -204,11 +204,11 @@ final class MCPZedChatTests: XCTestCase {
         let server = createTestServer()
         await ServerHandlers.registerHandlers(on: server)
         
-        let transport = InMemoryTransport()
-        try await server.start(transport: transport)
+        let (serverTransport, clientTransport) = await InMemoryTransport.createConnectedPair()
+        try await server.start(transport: serverTransport)
         
         let client = Client(name: "TestClient", version: "1.0.0")
-        try await client.connect(transport: transport)
+        try await client.connect(transport: clientTransport)
         
         let (prompts, _) = try await client.listPrompts()
         
@@ -226,11 +226,11 @@ final class MCPZedChatTests: XCTestCase {
         let server = createTestServer()
         await ServerHandlers.registerHandlers(on: server)
         
-        let transport = InMemoryTransport()
-        try await server.start(transport: transport)
+        let (serverTransport, clientTransport) = await InMemoryTransport.createConnectedPair()
+        try await server.start(transport: serverTransport)
         
         let client = Client(name: "TestClient", version: "1.0.0")
-        try await client.connect(transport: transport)
+        try await client.connect(transport: clientTransport)
         
         let (description, messages) = try await client.getPrompt(
             name: "greeting",
@@ -258,11 +258,11 @@ final class MCPZedChatTests: XCTestCase {
         let server = createTestServer()
         await ServerHandlers.registerHandlers(on: server)
         
-        let transport = InMemoryTransport()
-        try await server.start(transport: transport)
+        let (serverTransport, clientTransport) = await InMemoryTransport.createConnectedPair()
+        try await server.start(transport: serverTransport)
         
         let client = Client(name: "TestClient", version: "1.0.0")
-        try await client.connect(transport: transport)
+        try await client.connect(transport: clientTransport)
         
         let (description, messages) = try await client.getPrompt(
             name: "code-review",
