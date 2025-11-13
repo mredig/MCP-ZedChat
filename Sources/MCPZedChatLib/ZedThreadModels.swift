@@ -12,7 +12,50 @@ struct ZedThread: Codable, Sendable {
 	let completionMode: String?
 	let profile: String?
 	let version: String?
-	
+
+	init(title: String?, messages: [ZedThread.Message], updatedAt: String, detailedSummary: String?, model: Model?, completionMode: String?, profile: String?, version: String?) {
+		self.title = title
+		self.messages = messages
+		self.updatedAt = updatedAt
+		self.detailedSummary = detailedSummary
+		self.model = model
+		self.completionMode = completionMode
+		self.profile = profile
+		self.version = version
+	}
+
+	init(from decoder: any Decoder) throws {
+		let container = try decoder.container(keyedBy: CodingKeys.self)
+
+		let version = try container.decodeIfPresent(String.self, forKey: .version)
+		let title = try container.decodeIfPresent(String.self, forKey: .title)
+		let updatedAt = try container.decode(String.self, forKey: .updatedAt)
+		let detailedSummary = try container.decodeIfPresent(String.self, forKey: .detailedSummary)
+		let model = try container.decodeIfPresent(ZedThread.Model.self, forKey: .model)
+		let completionMode = try container.decodeIfPresent(String.self, forKey: .completionMode)
+		let profile = try container.decodeIfPresent(String.self, forKey: .profile)
+
+		let messages: [ZedThread.Message]
+		if version == "0.3.0" {
+			messages = try container.decode([ZedThread.Message].self, forKey: .messages)
+		} else {
+			let oldMessages = try container.decode([Legacy.ZedThreadMessage_0_2_0].self, forKey: .messages)
+			messages = oldMessages.map { $0.toVersion0_3_0() }
+		}
+
+		self.init(
+			title: title,
+			messages: messages,
+			updatedAt: updatedAt,
+			detailedSummary: detailedSummary,
+			model: model,
+			completionMode: completionMode,
+			profile: profile,
+			version: version)
+	}
+
+	struct UnsupportedVersionError: Error {}
+
 	enum CodingKeys: String, CodingKey {
 		case title
 		case messages
@@ -67,10 +110,10 @@ extension ZedThread {
 				let agentMsg = try agentData.decode(AgentMessage.self)
 				self = .agent(agentMsg)
 			} else {
+				let errorMessage = "Message must contain either 'User' or 'Agent' key"
 				throw DecodingError.dataCorruptedError(
 					in: container,
-					debugDescription: "Message must contain either 'User' or 'Agent' key"
-				)
+					debugDescription: errorMessage)
 			}
 		}
 
