@@ -5,7 +5,9 @@ import Foundation
 /// Represents a complete Zed chat thread with all messages and metadata
 struct ZedThread: Codable, Sendable {
 	let title: String?
-	let messages: [ZedThread.Message]
+	private(set) var messages: [ZedThread.Message]
+	let messageCount: Int
+	private(set) var messageRange: Range<Int>?
 	let updatedAt: String
 	let detailedSummary: String?
 	let model: Model?
@@ -16,6 +18,7 @@ struct ZedThread: Codable, Sendable {
 	init(title: String?, messages: [ZedThread.Message], updatedAt: String, detailedSummary: String?, model: Model?, completionMode: String?, profile: String?, version: String?) {
 		self.title = title
 		self.messages = messages
+		self.messageCount = messages.count
 		self.updatedAt = updatedAt
 		self.detailedSummary = detailedSummary
 		self.model = model
@@ -56,6 +59,26 @@ struct ZedThread: Codable, Sendable {
 		} catch {
 			throw error
 		}
+	}
+
+	func clampedToMessageRange(_ range: Range<Int>) -> ZedThread {
+		var new = self
+		if messages.indices.contains(range) {
+			new.messages = Array(messages[range])
+			new.messageRange = range
+		} else {
+			let newLower = max(range.lowerBound, messages.indices.lowerBound)
+			let newUpper = max(range.upperBound, messages.indices.upperBound)
+			guard newLower < newUpper else {
+				new.messages = []
+				new.messageRange = 0..<0
+				return new
+			}
+			let newRange = newLower..<newUpper
+			new.messages = Array(messages[newRange])
+			new.messageRange = newRange
+		}
+		return new
 	}
 
 	struct UnsupportedVersionError: Error {}

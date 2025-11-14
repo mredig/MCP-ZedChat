@@ -95,7 +95,15 @@ enum ServerHandlers {
 							"id": .object([
 								"type": "string",
 								"description": "The thread ID"
-							])
+							]),
+							"rangeStart": .object([
+								"type": "integer",
+								"description": "The starting index (inclusive) of the range of messages to retrieve. Required if `rangeEnd` is specified."
+							]),
+							"rangeEnd": .object([
+								"type": "integer",
+								"description": "The ending index (non-inclusive) of the range of messages to retrieve. Required if `rangeStart` is specified."
+							]),
 						]),
 						"required": .array([.string("id")])
 					])
@@ -126,8 +134,18 @@ enum ServerHandlers {
 						"properties": .object([
 							"query": .object([
 								"type": "string",
-								"description": "Search query to match against thread summaries"
-							])
+								"description": "Search query to match against thread summaries. There's no special syntax. Matches must be exact (apart from case sensitivity, specified in another argument)"
+							]),
+							"caseInsensitive": .object([
+								"type": "bool",
+								"description": "Whether the query matching is case sensitive"
+							]),
+							"onlyFirstMatchPerThread": .object([
+								"type": "bool",
+								"description": "When true, message filtering will stop on a thread once a message is found with a match. When false, all matching messages on the thread will be returned. It is more efficient to set to true, when exhaustion isn't necessary."
+							]),
+
+
 						]),
 						"required": .array([.string("query")])
 					])
@@ -170,7 +188,21 @@ enum ServerHandlers {
 					return try await handleZedListThreads(limit: limit)
 
 				case "zed-get-thread":
-					return try await handleZedGetThread(arguments: params.arguments)
+					guard
+						let id = params.strings.id
+					else { throw .contentError(message: "Missing thread id") }
+
+					let range: Range<Int>? = {
+						guard
+							let rangeStart = params.integers.rangeStart,
+							let rangeEnd = params.integers.rangeEnd,
+							rangeStart <= rangeEnd
+						else { return nil }
+
+						return rangeStart..<rangeEnd
+					}()
+
+					return try await handleZedGetThread(threadID: id, messageRange: range)
 
 				case "zed-search-threads":
 					let limit = params.integers.limit
@@ -178,7 +210,11 @@ enum ServerHandlers {
 
 				case "zed-search-thread-content":
 					guard let query = params.strings.query else { throw .contentError(message: "Missing query argument") }
-					return try await handleZedSearchThreadsContent(query: query, limit: params.integers.limit)
+					return try await handleZedSearchThreadsContent(
+						query: query,
+						limit: params.integers.limit,
+						caseInsensitive: params.bools.caseInsensitive ?? true,
+						onlyFirstMatchPerThread: params.bools.onlyFirstMatchPerThread ?? false)
 				default:
 					throw .contentError(message: "Unknown tool")
 				}
@@ -258,20 +294,15 @@ enum ServerHandlers {
 		}
 	}
 
-	private static func handleZedGetThread(arguments: [String: Value]?) async throws(ContentError) -> CallTool.Result {
-		guard let threadId = arguments?["id"]?.stringValue else {
-			return .init(
-				content: [.text("Error: Missing 'id' parameter")],
-				isError: true
-			)
-		}
-
+	private static func handleZedGetThread(threadID: String, messageRange: Range<Int>?) async throws(ContentError) -> CallTool.Result {
 		do {
-			let thread = try await dbAccessor.fetchThread(id: threadId)
+			let thread = try await dbAccessor.fetchThread(id: threadID)
+
+			async let response = thread.consumableWithContent(withMessageRange: messageRange)
 
 			let output = await StructuredContentOutput(
 				metaData: .init(summary: "Thread Details"),
-				content: [thread.consumableWithContent].compactMap(\.self))
+				content: [response].compactMap(\.self))
 
 			return output.toResult()
 		} catch {
@@ -301,22 +332,23 @@ enum ServerHandlers {
 		}
 	}
 
-
-	private static func handleZedSearchThreadsContent(query: String, limit: Int?) async throws(ContentError) -> CallTool.Result {
+	private static func handleZedSearchThreadsContent(query: String, limit: Int?, caseInsensitive: Bool, onlyFirstMatchPerThread: Bool) async throws(ContentError) -> CallTool.Result {
 		do {
-			let threadResults = try await dbAccessor.searchThreadContent(for: query, limit: limit)
-			async let consumableThreadResults = threadResults.asyncConcurrentMap { await $0.consumableWithContent }
+			let threadResults = try await dbAccessor.searchThreadContent(
+				for: query,
+				caseInsensitive: caseInsensitive,
+				limit: limit,
+				onlyFirstMatchPerThread: onlyFirstMatchPerThread)
 
-			let output = await StructuredContentOutput(
+			let output = StructuredContentOutput(
 				metaData: .init(summary: "Thread Content Search Results", resultCount: threadResults.count),
-				content: consumableThreadResults)
+				content: threadResults)
 
 			return output.toResult()
 		} catch {
 			throw .other(error)
 		}
 	}
-
 
 	// MARK: - Resource Handlers
 

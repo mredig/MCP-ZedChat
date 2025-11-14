@@ -29,33 +29,49 @@ struct ZedThreadsInterface {
 		}
 	}
 
-	func searchThreadContent(for query: String, limit: Int?) async throws -> [Threads] {
+	func searchThreadContent(for query: String, caseInsensitive: Bool, limit: Int?, onlyFirstMatchPerThread: Bool) async throws -> [Threads.ContentResult] {
 		let allThreads = try await fetchAllThreads(limit: nil)
-		let regex = Regex {
-			query
-		}.ignoresCase()
 
-		let matchingThreads = await allThreads.asyncFilter { thread in
+		let matches = await allThreads.asyncConcurrentMap { thread in
 			let consumable = await thread.consumableWithContent
 
-			return consumable?.thread?.nextMessage(containing: query, caseInsensitive: true) != nil
+			let results: [(index: Int, message: ZedThread.Message)]
+			if onlyFirstMatchPerThread {
+				results = [consumable?.thread?.nextMessage(containing: query, caseInsensitive: caseInsensitive)].compactMap(\.self)
+			} else {
+				results = consumable?.thread?.messages(containing: query, caseInsensitive: caseInsensitive) ?? []
+			}
+
+			let contentResults = results.map {
+				Threads.ContentResult(
+					threadID: consumable?.id,
+					threadSummary: consumable?.summary,
+					threadMessageCount: consumable?.thread?.messageCount ?? 0,
+					messageIndex: $0.index,
+					message: $0.message)
+			}
+
+			return contentResults
 		}
 
-		return matchingThreads
+		return matches.flatMap(\.self)
 	}
 }
 
 extension Threads {
 	struct Consumable: Codable, Sendable {
-		let id: UUID?
+		let id: String?
 		let summary: String
 		let lastUpdate: Date
 		let thread: ZedThread?
-		
-//		/// Convenience accessor for thread content as plain text
-//		var contentText: String? {
-//			thread?.allTextContent
-//		}
+	}
+
+	struct ContentResult: Codable, Sendable {
+		let threadID: String?
+		let threadSummary: String?
+		let threadMessageCount: Int
+		let messageIndex: Int
+		let message: ZedThread.Message
 	}
 
 	@MainActor
@@ -66,7 +82,7 @@ extension Threads {
 	@MainActor
 	var consumable: Consumable? {
 		.init(
-			id: uuid,
+			id: id,
 			summary: summary,
 			lastUpdate: Self.dateFormatter.date(from: updatedAt) ?? .now,
 			thread: nil)
@@ -89,9 +105,37 @@ extension Threads {
 		}
 
 		return .init(
-			id: uuid,
+			id: id,
 			summary: summary,
 			lastUpdate: Self.dateFormatter.date(from: updatedAt) ?? .now,
+			thread: parsedThread)
+	}
+
+	func consumableWithContent(withMessageRange messageRange: Range<Int>?) async -> Consumable? {
+		guard let decompressed = decompressZstd(dataAsData) else {
+			return nil
+		}
+
+		// Parse JSON into ZedThread structure
+		var parsedThread: ZedThread?
+		do {
+			parsedThread = try JSONDecoder().decode(ZedThread.self, from: decompressed)
+		} catch {
+			// If JSON parsing fails, return nil
+			print("Error: \(error)")
+			parsedThread = nil
+		}
+
+		if let messageRange {
+			parsedThread = parsedThread?.clampedToMessageRange(messageRange)
+		}
+
+		let date = await Self.dateFormatter.date(from: updatedAt) ?? .now
+
+		return .init(
+			id: id,
+			summary: summary,
+			lastUpdate: date,
 			thread: parsedThread)
 	}
 
