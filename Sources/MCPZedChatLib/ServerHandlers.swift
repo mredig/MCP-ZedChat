@@ -50,13 +50,32 @@ enum ServerHandlers {
 								"type": "string",
 								"description": "The thread ID"
 							]),
-							"rangeStart": .object([
+							"page": .object([
 								"type": "integer",
-								"description": "The starting index (inclusive) of the range of messages to retrieve. Required if `rangeEnd` is specified."
+								"description": "The output is paged to handle resources more efficiently. Defaults to `0` when omitted."
 							]),
-							"rangeEnd": .object([
-								"type": "integer",
-								"description": "The ending index (non-inclusive) of the range of messages to retrieve. Required if `rangeStart` is specified."
+							"filters": .object([
+								"type": "array",
+								"description": "Filters to apply to the message output on the given thread. Notes: Filters are applied before paging, therefore consistent filtering should lead to consistent paging... Tho if filters are used, the `messageRange` property will be unreliable. Uses AND logic. `query` input is always caseInsensitive in this search.",
+								"items": .object([
+									"type": "object",
+									"properties": .object([
+										"type": .object([
+											"type": "string",
+											"enum": .array([
+												.string("voice"),
+												.string("query"),
+												.string("isTool"),
+												.string("isThinking"),
+											])
+										]),
+										"value": .object([
+											"type": "string",
+											"description": "Value for filters that need one (like query). Valid values for each enum are:\nvoice: `agent` or `user`\nquery: any valid search query\nisTool: true/false\nisThinking: true/false"
+										])
+									]),
+									"required": .array([.string("type"), .string("value")])
+								])
 							]),
 						]),
 						"required": .array([.string("id")])
@@ -132,17 +151,29 @@ enum ServerHandlers {
 						let id = params.strings.id
 					else { throw .contentError(message: "Missing thread id") }
 
-					let range: Range<Int>? = {
+					let filtersArray = params.arguments?["filters"]?.arrayValue ?? []
+					let filters: [ThreadFilter] = filtersArray.compactMap { filterObjectContainer -> ThreadFilter? in
 						guard
-							let rangeStart = params.integers.rangeStart,
-							let rangeEnd = params.integers.rangeEnd,
-							rangeStart <= rangeEnd
+							let filterObject = filterObjectContainer.objectValue,
+							let type = filterObject["type"]?.stringValue,
+							let value = filterObject["value"]?.stringValue
 						else { return nil }
 
-						return rangeStart..<rangeEnd
-					}()
+						switch type {
+						case "voice":
+							switch value {
+							case "user": return .voice(.user)
+							case "agent": return .voice(.agent)
+							default: return nil
+							}
+						case "query": return .query(value)
+						case "isTool": return .isTool(Bool(value) ?? true)
+						case "isThinking": return .isThinking(Bool(value) ?? true)
+						default: return nil
+						}
+					}
 
-					return try await handleZedGetThread(threadID: id, messageRange: range)
+					return try await handleZedGetThread(threadID: id, page: params.integers.page ?? 0, andFilters: filters)
 
 				case .zedSearchThreads:
 					let limit = params.integers.limit
@@ -168,9 +199,6 @@ enum ServerHandlers {
 		}
 	}
 
-	// cull stupid long output
-	// include query in response
-
 	// MARK: - Zed Threads Tool Handlers
 
 	private static func handleZedListThreads(limit: Int?) async throws(ContentError) -> CallTool.Result {
@@ -189,11 +217,12 @@ enum ServerHandlers {
 		}
 	}
 
-	private static func handleZedGetThread(threadID: String, messageRange: Range<Int>?) async throws(ContentError) -> CallTool.Result {
+	private static func handleZedGetThread(threadID: String, page: Int, andFilters: [ThreadFilter]) async throws(ContentError) -> CallTool.Result {
 		do {
 			let thread = try await dbAccessor.fetchThread(id: threadID)
 
-			async let response = thread.consumableWithContent(withMessageRange: messageRange)
+			let messageRange = page..<(page+10)
+			async let response = thread.consumableWithContent(withMessageRange: messageRange, andFilters: andFilters)
 
 			let output = await StructuredContentOutput(
 				inputRequest: "\(ZedThreadCommands.zedGetThread): id: \(threadID) range: \(messageRange, default: "full range")",

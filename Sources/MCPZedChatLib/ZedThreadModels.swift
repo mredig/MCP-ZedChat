@@ -15,6 +15,8 @@ struct ZedThread: Codable, Sendable {
 	let profile: String?
 	let version: String?
 
+	private(set) var filters: [ThreadFilter] = []
+
 	init(title: String?, messages: [ZedThread.Message], updatedAt: String, detailedSummary: String?, model: Model?, completionMode: String?, profile: String?, version: String?) {
 		self.title = title
 		self.messages = messages
@@ -61,7 +63,49 @@ struct ZedThread: Codable, Sendable {
 		}
 	}
 
-	func clampedToMessageRange(_ range: Range<Int>) -> ZedThread {
+	func addingFilter(_ filter: ThreadFilter) -> ZedThread {
+		var new = self
+
+		new.filters.append(filter)
+
+		switch filter {
+		case .voice(let voice):
+			switch voice {
+			case .agent:
+				new.messages = new.messages.filter {
+					guard case .agent = $0 else { return false }
+					return true
+				}
+			case .user:
+				new.messages = new.messages.filter {
+					guard case .user = $0 else { return false }
+					return true
+				}
+			}
+		case .query(let query):
+			new.messages = new.messages(containing: query, caseInsensitive: true).map(\.message)
+		case .isTool(let isTool):
+			new.messages = new.messages.filter {
+				guard case .agent(let agentMessage) = $0 else { return false }
+				return (agentMessage.toolResults != nil) == isTool
+			}
+		case .isThinking(let isThinking):
+			new.messages = new.messages.filter {
+				guard case .agent(let agentMessage) = $0 else { return false }
+
+				let hasThinking = agentMessage.content.contains { messageContent in
+					guard case .thinking = messageContent else { return false }
+					return true
+				}
+
+				return hasThinking == isThinking
+			}
+		}
+
+		return new
+	}
+
+	func clampingToMessageRange(_ range: Range<Int>) -> ZedThread {
 		var new = self
 		if messages.indices.contains(range) {
 			new.messages = Array(messages[range])
@@ -380,14 +424,14 @@ extension ZedThread {
 /// Type-erased wrapper for decoding heterogeneous JSON
 struct AnyCodable: Codable, @unchecked Sendable {
 	let value: Any
-	
+
 	init(_ value: Any) {
 		self.value = value
 	}
-	
+
 	init(from decoder: Decoder) throws {
 		let container = try decoder.singleValueContainer()
-		
+
 		if let bool = try? container.decode(Bool.self) {
 			value = bool
 		} else if let int = try? container.decode(Int.self) {
@@ -409,10 +453,10 @@ struct AnyCodable: Codable, @unchecked Sendable {
 			)
 		}
 	}
-	
+
 	func encode(to encoder: Encoder) throws {
 		var container = encoder.singleValueContainer()
-		
+
 		switch value {
 		case let bool as Bool:
 			try container.encode(bool)
@@ -440,7 +484,7 @@ struct AnyCodable: Codable, @unchecked Sendable {
 			}
 		}
 	}
-	
+
 	func decode<T: Decodable>(_ type: T.Type) throws -> T {
 		let data = try JSONEncoder().encode(self)
 		return try JSONDecoder().decode(T.self, from: data)
@@ -473,7 +517,7 @@ extension ZedThread {
 			}
 		}.joined(separator: "\n\n")
 	}
-	
+
 	/// Count of user messages
 	var userMessageCount: Int {
 		messages.filter {
@@ -481,7 +525,7 @@ extension ZedThread {
 			return false
 		}.count
 	}
-	
+
 	/// Count of agent messages
 	var agentMessageCount: Int {
 		messages.filter {

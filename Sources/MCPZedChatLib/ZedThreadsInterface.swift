@@ -119,7 +119,7 @@ extension Threads {
 			thread: parsedThread)
 	}
 
-	func consumableWithContent(withMessageRange messageRange: Range<Int>?) async -> Consumable? {
+	func consumableWithContent(withMessageRange messageRange: Range<Int>?, andFilters: [ThreadFilter]) async -> Consumable? {
 		guard let decompressed = decompressZstd(dataAsData) else {
 			return nil
 		}
@@ -134,8 +134,12 @@ extension Threads {
 			parsedThread = nil
 		}
 
+		for andFilter in andFilters {
+			parsedThread = parsedThread?.addingFilter(andFilter)
+		}
+
 		if let messageRange {
-			parsedThread = parsedThread?.clampedToMessageRange(messageRange)
+			parsedThread = parsedThread?.clampingToMessageRange(messageRange)
 		}
 
 		let date = await Self.dateFormatter.date(from: updatedAt) ?? .now
