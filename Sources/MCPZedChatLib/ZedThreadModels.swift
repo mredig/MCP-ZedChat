@@ -151,7 +151,13 @@ extension ZedThread.Message {
 		case text(String)
 		case toolUse(ToolUse)
 		case mention(Mention)
+		case thinking(Thinking)
 		case other(String)
+
+		struct Thinking: Codable, Sendable {
+			let text: String
+			let signature: String
+		}
 
 		struct ToolUse: Codable, Sendable {
 			let id: String
@@ -164,22 +170,6 @@ extension ZedThread.Message {
 				case name
 				case rawInput = "raw_input"
 				case input
-			}
-		}
-
-		struct GenericKeys: CodingKey, Hashable {
-			var stringValue: String
-
-			init(stringValue: String) {
-				self.stringValue = stringValue
-				self.intValue = Int(stringValue)
-			}
-
-			var intValue: Int?
-
-			init(intValue: Int) {
-				self.intValue = intValue
-				self.stringValue = "\(intValue)"
 			}
 		}
 
@@ -274,11 +264,13 @@ extension ZedThread.Message {
 			} else if let mentionData = dict["Mention"] {
 				let mention = try mentionData.decode(Mention.self)
 				self = .mention(mention)
+			} else if let thinkingdata = dict["Thinking"] {
+				let thinking = try thinkingdata.decode(Thinking.self)
+				self = .thinking(thinking)
 			} else {
 				throw DecodingError.dataCorruptedError(
 					in: container,
-					debugDescription: "MessageContent must contain either 'Text' or 'ToolUse' key"
-				)
+					debugDescription: "MessageContent must contain either 'Text' or 'ToolUse' key")
 			}
 		}
 
@@ -293,6 +285,8 @@ extension ZedThread.Message {
 				try container.encode(["Mention": mention])
 			case .other(let otherText):
 				try container.encode(["Other": otherText])
+			case .thinking(let thinking):
+				try container.encode(["Thinking": thinking])
 			}
 		}
 	}
@@ -507,6 +501,8 @@ extension ZedThread {
 					guard toolUse.rawInput?.contains(regexQuery) == true else { continue }
 				case .other(let otherString):
 					guard otherString.contains(regexQuery) else { continue }
+				case .thinking(let thinking):
+					guard thinking.text.contains(regexQuery) else { continue }
 				}
 				return (index, message)
 			}
@@ -525,5 +521,21 @@ extension ZedThread {
 		}
 
 		return accumulator
+	}
+}
+
+struct GenericKeys: CodingKey, Hashable {
+	var stringValue: String
+
+	init(stringValue: String) {
+		self.stringValue = stringValue
+		self.intValue = Int(stringValue)
+	}
+
+	var intValue: Int?
+
+	init(intValue: Int) {
+		self.intValue = intValue
+		self.stringValue = "\(intValue)"
 	}
 }
