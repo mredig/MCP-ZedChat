@@ -95,11 +95,11 @@ extension ZedThread {
 
 		struct AgentMessage: Codable, Sendable {
 			let content: [Content]
-			//		let toolResults: [String: ToolResult]?
+			let toolResults: [String: ToolResult]?
 
 			enum CodingKeys: String, CodingKey {
 				case content
-				//			case toolResults = "tool_results"
+				case toolResults = "tool_results"
 			}
 		}
 
@@ -296,12 +296,16 @@ extension ZedThread.Message {
 
 extension ZedThread {
 	struct ToolResult: Codable, Sendable {
-		let content: [Content]?
+		let content: Content?
+		let toolUseID: String
+		let toolName: String?
 		let isError: Bool?
 
 		enum CodingKeys: String, CodingKey {
 			case content
 			case isError = "is_error"
+			case toolUseID = "tool_use_id"
+			case toolName = "tool_name"
 		}
 
 		enum Content: Codable, Sendable {
@@ -322,9 +326,9 @@ extension ZedThread {
 				let container = try decoder.singleValueContainer()
 				let dict = try container.decode([String: AnyCodable].self)
 
-				if let text = dict["text"]?.value as? String {
+				if let text = dict["Text"]?.value as? String {
 					self = .text(text)
-				} else if let imageData = dict["image"] {
+				} else if let imageData = dict["Image"] {
 					let image = try imageData.decode(ImageContent.self)
 					self = .image(image)
 				} else {

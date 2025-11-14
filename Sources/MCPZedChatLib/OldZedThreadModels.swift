@@ -155,9 +155,16 @@ extension Legacy.ZedThreadMessage_0_2_0 {
 				content: content
 			))
 		case .assistant:
-			return .agent(ZedThread.Message.AgentMessage(
-				content: content
-			))
+			return .agent(
+				ZedThread.Message.AgentMessage(
+					content: content,
+					toolResults: toolResults.reduce(into: [:], {
+						$0[$1.toolUseId] = ZedThread.ToolResult(
+							content: .text($1.content.text ?? "No content"),
+							toolUseID: $1.toolUseId,
+							toolName: "legacy",
+							isError: $1.isError)
+					})))
 		}
 	}
 }
