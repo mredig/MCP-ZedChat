@@ -35,23 +35,27 @@ struct ZedThread: Codable, Sendable {
 		let completionMode = try container.decodeIfPresent(String.self, forKey: .completionMode)
 		let profile = try container.decodeIfPresent(String.self, forKey: .profile)
 
-		let messages: [ZedThread.Message]
-		if version == "0.3.0" {
-			messages = try container.decode([ZedThread.Message].self, forKey: .messages)
-		} else {
-			let oldMessages = try container.decode([Legacy.ZedThreadMessage_0_2_0].self, forKey: .messages)
-			messages = oldMessages.map { $0.toVersion0_3_0() }
-		}
+		do {
+			let messages: [ZedThread.Message]
+			if version == "0.3.0" {
+				messages = try container.decode([ZedThread.Message].self, forKey: .messages)
+			} else {
+				let oldMessages = try container.decode([Legacy.ZedThreadMessage_0_2_0].self, forKey: .messages)
+				messages = oldMessages.map { $0.toVersion0_3_0() }
+			}
 
-		self.init(
-			title: title,
-			messages: messages,
-			updatedAt: updatedAt,
-			detailedSummary: detailedSummary,
-			model: model,
-			completionMode: completionMode,
-			profile: profile,
-			version: version)
+			self.init(
+				title: title,
+				messages: messages,
+				updatedAt: updatedAt,
+				detailedSummary: detailedSummary,
+				model: model,
+				completionMode: completionMode,
+				profile: profile,
+				version: version)
+		} catch {
+			throw error
+		}
 	}
 
 	struct UnsupportedVersionError: Error {}
@@ -82,6 +86,7 @@ extension ZedThread {
 	enum Message: Codable, Sendable {
 		case user(UserMessage)
 		case agent(AgentMessage)
+		case noop
 
 		struct UserMessage: Codable, Sendable {
 			let id: String
@@ -101,7 +106,15 @@ extension ZedThread {
 		// Custom decoding to handle the User/Agent wrapper
 		init(from decoder: Decoder) throws {
 			let container = try decoder.singleValueContainer()
-			let dict = try container.decode([String: AnyCodable].self)
+			let dict: [String: AnyCodable]
+			do {
+				dict = try container.decode([String: AnyCodable].self)
+			} catch DecodingError.typeMismatch(let expectedType, _) where expectedType == [String: Any].self {
+				_ = try container.decode(String.self)
+
+				self = .noop
+				return
+			}
 
 			if let userData = dict["User"] {
 				let userMsg = try userData.decode(UserMessage.self)
@@ -124,6 +137,7 @@ extension ZedThread {
 				try container.encode(["User": userMsg])
 			case .agent(let agentMsg):
 				try container.encode(["Agent": agentMsg])
+			case .noop: break
 			}
 		}
 	}
@@ -419,6 +433,8 @@ extension ZedThread {
 	var allTextContent: String {
 		messages.compactMap { message in
 			switch message {
+			case .noop:
+				return ""
 			case .user(let userMsg):
 				return userMsg.content.compactMap { content in
 					if case .text(let text) = content {
@@ -477,6 +493,8 @@ extension ZedThread {
 				contents = userMessage.content
 			case .agent(let agentMessage):
 				contents = agentMessage.content
+			case .noop:
+				continue
 			}
 
 			for content in contents {
