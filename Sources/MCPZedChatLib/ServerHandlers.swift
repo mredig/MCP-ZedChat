@@ -91,11 +91,11 @@ enum ServerHandlers {
 								"description": "Search query to match against thread summaries. There's no special syntax. Matches must be exact (apart from case sensitivity, specified in another argument)"
 							]),
 							"caseInsensitive": .object([
-								"type": "bool",
+								"type": "boolean",
 								"description": "Whether the query matching is case sensitive"
 							]),
 							"onlyFirstMatchPerThread": .object([
-								"type": "bool",
+								"type": "boolean",
 								"description": "When true, message filtering will stop on a thread once a message is found with a match. When false, all matching messages on the thread will be returned. It is more efficient to set to true, when exhaustion isn't necessary."
 							]),
 
