@@ -2,6 +2,7 @@ import Foundation
 import SQLite3
 import SwiftPizzaSnips
 import libzstd
+import Algorithms
 
 struct ZedThreadsInterface {
 	let db: ThreadsDB
@@ -29,7 +30,8 @@ struct ZedThreadsInterface {
 		}
 	}
 
-	func searchThreadContent(for query: String, caseInsensitive: Bool, limit: Int?, onlyFirstMatchPerThread: Bool) async throws -> [Threads.ContentResult] {
+	func searchThreadContent(for query: String, caseInsensitive: Bool, page: Int, onlyFirstMatchPerThread: Bool) async throws -> [Threads.ContentResult] {
+		guard page >= 0 else { return [] }
 		let allThreads = try await fetchAllThreads(limit: nil)
 
 		let matches = await allThreads.asyncConcurrentMap { thread in
@@ -54,7 +56,13 @@ struct ZedThreadsInterface {
 			return contentResults
 		}
 
-		return matches.flatMap(\.self)
+		let allMatches = matches.flatMap(\.self)
+
+		let pages = allMatches.lazy.chunks(ofCount: 10)
+
+		guard page < pages.count else { return [] }
+
+		return Array(pages[_offset: page])
 	}
 }
 

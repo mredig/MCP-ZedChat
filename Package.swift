@@ -29,6 +29,7 @@ let package = Package(
 		.package(url: "https://github.com/Lighter-swift/Lighter.git", from: "1.4.12"),
 		.package(url: "https://github.com/mredig/SwiftPizzaSnips.git", from: "0.4.37"),
 		.package(url: "https://github.com/facebook/zstd.git", from: "1.5.0"),
+		.package(url: "https://github.com/apple/swift-algorithms.git", from: "1.2.1"),
     ],
     targets: [
 		.target(
@@ -40,6 +41,7 @@ let package = Package(
 				.product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
 				.product(name: "Logging", package: "swift-log"),
 				.product(name: "libzstd", package: "zstd"),
+				.product(name: "Algorithms", package: "swift-algorithms"),
 			],
 			swiftSettings: [
 				.enableUpcomingFeature("StrictConcurrency")
@@ -49,9 +51,6 @@ let package = Package(
             name: "MCPZedChat",
             dependencies: [
 				"MCPZedChatLib",
-//                .product(name: "MCP", package: "swift-sdk"),
-//                .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
-//                .product(name: "Logging", package: "swift-log"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             path: "Sources/MCPZedChat",

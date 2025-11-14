@@ -90,6 +90,10 @@ enum ServerHandlers {
 								"type": "string",
 								"description": "Search query to match against thread summaries. There's no special syntax. Matches must be exact (apart from case sensitivity, specified in another argument)"
 							]),
+							"page": .object([
+								"type": "integer",
+								"description": "Results are paged because they can be obscenely large. This allows for more efficient, bite sized search. If omitted, defaults to `0`"
+							]),
 							"caseInsensitive": .object([
 								"type": "boolean",
 								"description": "Whether the query matching is case sensitive"
@@ -114,12 +118,16 @@ enum ServerHandlers {
 			logger.debug("Calling tool", metadata: ["tool": "\(params.name)"])
 
 			do throws(ContentError) {
-				switch params.name {
-				case "zed-list-threads":
+				guard let command = ZedThreadCommands(rawValue: params.name) else {
+					throw .contentError(message: "Unknown tool")
+				}
+
+				switch command {
+				case .zedListThreads:
 					let limit = params.integers.limit
 					return try await handleZedListThreads(limit: limit)
 
-				case "zed-get-thread":
+				case .zedGetThread:
 					guard
 						let id = params.strings.id
 					else { throw .contentError(message: "Missing thread id") }
@@ -136,19 +144,17 @@ enum ServerHandlers {
 
 					return try await handleZedGetThread(threadID: id, messageRange: range)
 
-				case "zed-search-threads":
+				case .zedSearchThreads:
 					let limit = params.integers.limit
 					return try await handleZedSearchThreads(arguments: params.arguments, limit: limit)
 
-				case "zed-search-thread-content":
+				case .zedSearchThreadContent:
 					guard let query = params.strings.query else { throw .contentError(message: "Missing query argument") }
 					return try await handleZedSearchThreadsContent(
 						query: query,
-						limit: params.integers.limit,
+						page: params.integers.page,
 						caseInsensitive: params.bools.caseInsensitive ?? true,
 						onlyFirstMatchPerThread: params.bools.onlyFirstMatchPerThread ?? false)
-				default:
-					throw .contentError(message: "Unknown tool")
 				}
 			} catch {
 				switch error {
@@ -162,6 +168,9 @@ enum ServerHandlers {
 		}
 	}
 
+	// cull stupid long output
+	// include query in response
+
 	// MARK: - Zed Threads Tool Handlers
 
 	private static func handleZedListThreads(limit: Int?) async throws(ContentError) -> CallTool.Result {
@@ -170,6 +179,7 @@ enum ServerHandlers {
 			async let consumableThreads = threads.asyncConcurrentMap { await $0.consumable }
 
 			let output = await StructuredContentOutput(
+				inputRequest: "",
 				metaData: .init(resultCount: threads.count),
 				content: consumableThreads)
 
@@ -186,6 +196,7 @@ enum ServerHandlers {
 			async let response = thread.consumableWithContent(withMessageRange: messageRange)
 
 			let output = await StructuredContentOutput(
+				inputRequest: "\(ZedThreadCommands.zedGetThread): id: \(threadID) range: \(messageRange, default: "full range")",
 				metaData: .init(summary: "Thread Details"),
 				content: [response].compactMap(\.self))
 
@@ -208,6 +219,7 @@ enum ServerHandlers {
 			async let consumableThreadResults = threadResults.asyncConcurrentMap { await $0.consumable }
 
 			let output = await StructuredContentOutput(
+				inputRequest: "\(ZedThreadCommands.zedSearchThreads): query: \(query) limit: \(limit, default: "all")",
 				metaData: .init(summary: "Thread Titles Search Results", resultCount: threadResults.count),
 				content: consumableThreadResults)
 
@@ -217,15 +229,16 @@ enum ServerHandlers {
 		}
 	}
 
-	private static func handleZedSearchThreadsContent(query: String, limit: Int?, caseInsensitive: Bool, onlyFirstMatchPerThread: Bool) async throws(ContentError) -> CallTool.Result {
+	private static func handleZedSearchThreadsContent(query: String, page: Int?, caseInsensitive: Bool, onlyFirstMatchPerThread: Bool) async throws(ContentError) -> CallTool.Result {
 		do {
 			let threadResults = try await dbAccessor.searchThreadContent(
 				for: query,
 				caseInsensitive: caseInsensitive,
-				limit: limit,
+				page: page ?? 0,
 				onlyFirstMatchPerThread: onlyFirstMatchPerThread)
 
 			let output = StructuredContentOutput(
+				inputRequest: "\(ZedThreadCommands.zedSearchThreadContent): query: \(query), page: \(page ?? 0), caseInsensitive: \(caseInsensitive), onlyFirstMatchPerThread: \(onlyFirstMatchPerThread)",
 				metaData: .init(summary: "Thread Content Search Results", resultCount: threadResults.count),
 				content: threadResults)
 
@@ -287,10 +300,10 @@ enum ServerHandlers {
 			case "zedchat://welcome":
 				let welcome = """
 				Welcome to MCP ZedChat Server!
-				
+
 				This is a Model Context Protocol server built with Swift.
 				It provides tools, resources, and prompts for AI interaction.
-				
+
 				Version: 1.0.0
 				"""
 				return .init(contents: [
@@ -359,6 +372,7 @@ enum ServerHandlers {
 	// MARK: - Output Structure
 
 	private struct StructuredContentOutput<Content: Codable & Sendable>: Codable, Sendable {
+		let inputRequest: String
 		let metaData: Metadata?
 		let content: [Content]
 
