@@ -10,7 +10,6 @@ enum ServerHandlers {
 	static func registerHandlers(on server: Server) async {
 		await registerToolHandlers(on: server)
 		await registerResourceHandlers(on: server)
-		await registerPromptHandlers(on: server)
 		await registerLifecycleHandlers(on: server)
 	}
 
@@ -116,28 +115,6 @@ enum ServerHandlers {
 
 			do throws(ContentError) {
 				switch params.name {
-				case "echo":
-					guard let message = params.arguments?["message"]?.stringValue else {
-						return .init(
-							content: [.text("Error: Missing 'message' parameter")],
-							isError: true
-						)
-					}
-					return .init(
-						content: [.text("Echo: \(message)")],
-						isError: false
-					)
-
-				case "calculate":
-					return handleCalculate(arguments: params.arguments)
-
-				case "timestamp":
-					let timestamp = ISO8601DateFormatter().string(from: Date())
-					return .init(
-						content: [.text(timestamp)],
-						isError: false
-					)
-
 				case "zed-list-threads":
 					let limit = params.integers.limit
 					return try await handleZedListThreads(limit: limit)
@@ -357,90 +334,6 @@ enum ServerHandlers {
 
 		// Note: Resource unsubscribe handler not included as UnsubscribeResource
 		// may not be available in the current MCP Swift SDK version
-	}
-
-	// MARK: - Prompt Handlers
-
-	private static func registerPromptHandlers(on server: Server) async {
-		// List available prompts
-		await server.withMethodHandler(ListPrompts.self) { _ in
-			logger.debug("Listing prompts")
-
-			let prompts = [
-				Prompt(
-					name: "greeting",
-					description: "A friendly greeting prompt",
-					arguments: [
-						.init(name: "name", description: "Name of the person to greet", required: false)
-					]
-				),
-				Prompt(
-					name: "code-review",
-					description: "Start a code review conversation",
-					arguments: [
-						.init(name: "language", description: "Programming language", required: true),
-						.init(name: "focus", description: "What to focus on (e.g., security, performance)", required: false)
-					]
-				),
-				Prompt(
-					name: "debug-session",
-					description: "Initialize a debugging conversation",
-					arguments: [
-						.init(name: "error", description: "Error message or description", required: true),
-						.init(name: "context", description: "Additional context", required: false)
-					]
-				)
-			]
-
-			return .init(prompts: prompts, nextCursor: nil)
-		}
-
-		// Handle prompt retrieval
-		await server.withMethodHandler(GetPrompt.self) { params in
-			logger.debug("Getting prompt", metadata: ["name": "\(params.name)"])
-
-			switch params.name {
-			case "greeting":
-				let name = params.arguments?["name"]?.stringValue ?? "there"
-				let description = "A friendly greeting"
-				let messages: [Prompt.Message] = [
-					.assistant("Hello \(name)! How can I assist you today?"),
-					.user("I'd like to learn more about this MCP server.")
-				]
-				return .init(description: description, messages: messages)
-
-			case "code-review":
-				guard let language = params.arguments?["language"]?.stringValue else {
-					throw MCPError.invalidParams("Missing required argument: language")
-				}
-
-				let focus = params.arguments?["focus"]?.stringValue ?? "general code quality"
-				let description = "Code review session for \(language)"
-				let messages: [Prompt.Message] = [
-					.user("You are an expert \(language) code reviewer. Focus on \(focus)."),
-					.assistant("I'm ready to review your \(language) code with a focus on \(focus). Please share the code you'd like me to review.")
-				]
-				return .init(description: description, messages: messages)
-
-			case "debug-session":
-				guard let error = params.arguments?["error"]?.stringValue else {
-					throw MCPError.invalidParams("Missing required argument: error")
-				}
-
-				let context = params.arguments?["context"]?.stringValue ?? "No additional context provided"
-				let description = "Debugging session"
-				let messages: [Prompt.Message] = [
-					.user("You are a debugging assistant. Help identify and resolve the issue."),
-					.user("I'm encountering this error: \(error)"),
-					.user("Additional context: \(context)"),
-					.assistant("Let me help you debug this issue. Can you provide more details about when this error occurs and what you've tried so far?")
-				]
-				return .init(description: description, messages: messages)
-
-			default:
-				throw MCPError.invalidParams("Unknown prompt: \(params.name)")
-			}
-		}
 	}
 
 	// MARK: - Lifecycle Handlers

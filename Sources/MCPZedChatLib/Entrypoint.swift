@@ -20,7 +20,6 @@ public enum Entrypoint {
 			name: "MCP-ZedChat",
 			version: "1.0.0",
 			capabilities: .init(
-				prompts: .init(listChanged: true),
 				resources: .init(subscribe: true, listChanged: true),
 				tools: .init(listChanged: true)
 			)
