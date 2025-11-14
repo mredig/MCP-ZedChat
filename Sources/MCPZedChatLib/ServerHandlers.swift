@@ -29,51 +29,6 @@ enum ServerHandlers {
 
 			let tools = [
 				Tool(
-					name: "echo",
-					description: "Echoes back the provided message",
-					inputSchema: .object([
-						"type": "object",
-						"properties": .object([
-							"message": .object([
-								"type": "string",
-								"description": "The message to echo back"
-							])
-						]),
-						"required": .array([.string("message")])
-					])
-				),
-				Tool(
-					name: "calculate",
-					description: "Performs basic arithmetic calculations",
-					inputSchema: .object([
-						"type": "object",
-						"properties": .object([
-							"operation": .object([
-								"type": "string",
-								"description": "The operation to perform",
-								"enum": .array([.string("add"), .string("subtract"), .string("multiply"), .string("divide")])
-							]),
-							"a": .object([
-								"type": "number",
-								"description": "First number"
-							]),
-							"b": .object([
-								"type": "number",
-								"description": "Second number"
-							])
-						]),
-						"required": .array([.string("operation"), .string("a"), .string("b")])
-					])
-				),
-				Tool(
-					name: "timestamp",
-					description: "Returns the current timestamp in ISO 8601 format",
-					inputSchema: .object([
-						"type": "object",
-						"properties": .object([:])
-					])
-				),
-				Tool(
 					name: "zed-list-threads",
 					description: "List all Zed chat threads from the threads database",
 					inputSchema: .object([
@@ -228,53 +183,6 @@ enum ServerHandlers {
 				}
 			}
 		}
-	}
-
-	private static func handleCalculate(arguments: [String: Value]?) -> CallTool.Result {
-		guard let operation = arguments?["operation"]?.stringValue,
-			  let aValue = arguments?["a"],
-			  let bValue = arguments?["b"] else {
-			return .init(
-				content: [.text("Error: Missing required parameters (operation, a, b)")],
-				isError: true
-			)
-		}
-
-		guard let a = aValue.numberValue,
-			  let b = bValue.numberValue else {
-			return .init(
-				content: [.text("Error: Parameters 'a' and 'b' must be numbers")],
-				isError: true
-			)
-		}
-
-		let result: Double
-		switch operation {
-		case "add":
-			result = a + b
-		case "subtract":
-			result = a - b
-		case "multiply":
-			result = a * b
-		case "divide":
-			guard b != 0 else {
-				return .init(
-					content: [.text("Error: Division by zero")],
-					isError: true
-				)
-			}
-			result = a / b
-		default:
-			return .init(
-				content: [.text("Error: Unknown operation '\(operation)'")],
-				isError: true
-			)
-		}
-
-		return .init(
-			content: [.text("\(result)")],
-			isError: false
-		)
 	}
 
 	// MARK: - Zed Threads Tool Handlers
