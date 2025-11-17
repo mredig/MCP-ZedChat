@@ -1,0 +1,46 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0'
+      
+      - name: Build universal binary
+        run: |
+          swift build -c release --arch arm64 --arch x86_64
+      
+      - name: Create tarball
+        run: |
+          cd .build/apple/Products/Release
+          tar -czf mcp-zedchat-macos.tar.gz mcp-zedchat
+          shasum -a 256 mcp-zedchat-macos.tar.gz
+          mv mcp-zedchat-macos.tar.gz $GITHUB_WORKSPACE/
+      
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: mcp-zedchat-macos.tar.gz
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: Release ${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
