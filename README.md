@@ -1,76 +1,17 @@
 # MCP-ZedChat
 
-A Swift-based Model Context Protocol (MCP) server template built on the official [MCP Swift SDK](https://github.com/modelcontextprotocol/swift-sdk).
+A Swift MCP (Model Context Protocol) server for searching and accessing Zed chat history.
 
-## Overview
-
-This template provides a production-ready MCP server implementation with:
-
-- **Tools**: Executable functions that can be called by MCP clients
-- **Resources**: Data that can be accessed and subscribed to
-- **Prompts**: Templated conversation starters with arguments
-- **Graceful Shutdown**: Proper lifecycle management using Swift Service Lifecycle
-- **Comprehensive Tests**: Example tests for all capabilities
-
-## Requirements
-
-- **Swift 6.0+** (Xcode 16+)
-- **macOS 13.0+** (or compatible platform - see Platform Support below)
-
-### Platform Support
-
-| Platform | Minimum Version |
-|----------|----------------|
-| macOS | 13.0+ |
-| iOS / Mac Catalyst | 16.0+ |
-| watchOS | 9.0+ |
-| tvOS | 16.0+ |
-| visionOS | 1.0+ |
-| Linux | Distributions with glibc or musl |
-
-## Installation
-
-### Clone and Build
+## TLDR - Quick Start
 
 ```bash
-# Clone this repository
+# Clone and build
 git clone <your-repo-url>
 cd MCP-ZedChat
-
-# Build the project
 swift build
 
-# Run the server
-swift run
-```
-
-### Swift Package Manager
-
-Add this package as a dependency in your `Package.swift`:
-
-```swift
-dependencies: [
-    .package(url: "<your-repo-url>", from: "1.0.0")
-]
-```
-
-## Usage
-
-### Running the Server
-
-The server uses stdio transport by default, making it compatible with MCP clients like Claude Desktop:
-
-```bash
-swift run mcp-zedchat
-```
-
-### Configuration with Claude Desktop
-
-Add this server to your Claude Desktop configuration file:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-```json
+# Add to Claude Desktop config at:
+# ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "zedchat": {
@@ -78,311 +19,279 @@ Add this server to your Claude Desktop configuration file:
     }
   }
 }
+
+# Restart Claude Desktop - you're done!
 ```
 
-Or if you want to run it with `swift run`:
+## What It Does
 
+Provides access to your Zed editor's chat history through MCP tools:
+- Search chat threads by title
+- Search within chat content
+- Retrieve full thread details with filtering
+- List all threads
+
+Zed stores chat history in a SQLite database with compressed (zstd) content. This MCP server makes that data accessible to Claude and other MCP clients.
+
+## Adding Your Own Tools
+
+1. **Create a new file** in `Sources/MCPZedChatLib/ToolImplementations/`
+2. **Extend `ToolCommand`** with your command name
+3. **Implement `ToolImplementation` protocol**
+4. **Add to registry** in `ToolRegistry.swift`
+
+### Example: Adding a Simple Tool
+
+```swift
+// EchoTool.swift
+import MCP
+import Foundation
+
+extension ToolCommand {
+    static let echo = ToolCommand(rawValue: "echo")
+}
+
+struct EchoTool: ToolImplementation {
+    static let command: ToolCommand = .echo
+    
+    static let tool = Tool(
+        name: command.rawValue,
+        description: "Echoes a message back",
+        inputSchema: .object([
+            "type": "object",
+            "properties": .object([
+                "message": .object([
+                    "type": "string",
+                    "description": "The message to echo"
+                ])
+            ]),
+            "required": .array([.string("message")])
+        ])
+    )
+    
+    let message: String
+    private let dbAccessor: ZedThreadsInterface
+    
+    init(arguments: CallTool.Parameters, dbAccessor: ZedThreadsInterface) throws(ContentError) {
+        self.dbAccessor = dbAccessor
+        
+        guard let message = arguments.strings.message else {
+            throw .missingArgument("message")
+        }
+        self.message = message
+    }
+    
+    func callAsFunction() async throws(ContentError) -> CallTool.Result {
+        let output = StructuredContentOutput(
+            inputRequest: "echo: \(message)",
+            metaData: nil,
+            content: [["echo": message]])
+        
+        return output.toResult()
+    }
+}
+```
+
+Then add to `ToolRegistry.swift`:
+```swift
+static let registeredTools: [ToolCommand: any ToolImplementation.Type] = [
+    .listThreads: ListThreadsTool.self,
+    .getThread: GetThreadTool.self,
+    .searchThreads: SearchThreadsTool.self,
+    .searchThreadContent: SearchThreadContentTool.self,
+    .echo: EchoTool.self,  // ← Add your tool here
+]
+```
+
+That's it! Rebuild and your tool is available.
+
+## Project Structure
+
+```
+MCP-ZedChat/
+├── Sources/MCPZedChatLib/
+│   ├── ToolRegistry.swift              ← Register your tools here
+│   ├── ToolCommands.swift               ← Tool command constants
+│   ├── DB.swift                         ← Database schema (SQLite/Lighter)
+│   ├── ZedThreadsInterface.swift        ← Database access layer
+│   ├── ToolImplementations/             ← Put your tools here
+│   │   ├── ToolImplementation.swift     ← Protocol definition
+│   │   ├── ListThreadsTool.swift
+│   │   ├── GetThreadTool.swift
+│   │   ├── SearchThreadsTool.swift
+│   │   ├── SearchThreadContentTool.swift
+│   │   └── SharedModels/                ← Shared data models
+│   │       ├── ZedThreadModels.swift
+│   │       ├── ThreadFilter.swift
+│   │       └── OldZedThreadModels.swift
+│   └── Support/                         ← Implementation details (don't need to modify)
+│       ├── ServerHandlers.swift
+│       ├── ToolSupport.swift
+│       └── ...
+```
+
+## Tool Implementation Pattern
+
+Every tool follows the same pattern:
+
+1. **Extend `ToolCommand`** - Define your command identifier
+2. **Define `static let tool`** - MCP Tool definition with JSON Schema
+3. **Extract parameters in `init`** - Validate and convert to typed properties
+4. **Implement `callAsFunction`** - Your tool's business logic
+
+### Parameter Extraction
+
+Use the `ParamLookup` helpers to extract typed parameters:
+
+```swift
+arguments.strings.myStringParam    // String?
+arguments.integers.myIntParam      // Int?
+arguments.bools.myBoolParam        // Bool?
+```
+
+### Error Handling
+
+Throw `ContentError` for all tool errors:
+
+```swift
+throw .missingArgument("paramName")
+throw .mismatchedType(argument: "paramName", expected: "string")
+throw .initializationFailed("custom message")
+throw .contentError(message: "custom error")
+throw .other(someError)
+```
+
+## Requirements
+
+- Swift 6.0+
+- macOS 13.0+
+- Zed editor (for chat history database)
+
+## Testing
+
+```bash
+swift test
+```
+
+## Available Tools
+
+### `zed-list-threads`
+List all Zed chat threads from the database.
+
+**Parameters:**
+- `limit` (optional, integer) - Limit result count
+
+**Returns:** Array of thread summaries with metadata.
+
+### `zed-get-thread`
+Get a specific thread by ID with optional filtering and pagination.
+
+**Parameters:**
+- `id` (required, string) - The thread ID
+- `page` (optional, integer) - Page number for message pagination (default: 0, 10 messages per page)
+- `filters` (optional, array) - Array of filter objects:
+  - `{ "type": "voice", "value": "user" }` or `"agent"` - Filter by message sender
+  - `{ "type": "query", "value": "search text" }` - Filter messages containing text
+  - `{ "type": "isTool", "value": "true" }` or `"false"` - Filter tool messages
+  - `{ "type": "isThinking", "value": "true" }` or `"false"` - Filter thinking messages
+
+**Returns:** Thread details with filtered/paginated messages.
+
+### `zed-search-threads`
+Search thread titles/summaries.
+
+**Parameters:**
+- `query` (required, string) - Search query for thread summaries
+- `limit` (optional, integer) - Limit result count
+
+**Returns:** Array of matching threads.
+
+### `zed-search-thread-content`
+Search within thread message content (searches all threads).
+
+**Parameters:**
+- `query` (required, string) - Search query (exact match, case-insensitive by default)
+- `page` (optional, integer) - Page number for results (default: 0, 10 results per page)
+- `caseInsensitive` (optional, boolean) - Whether search is case-insensitive (default: true)
+- `onlyFirstMatchPerThread` (optional, boolean) - Stop after first match per thread (default: false)
+
+**Returns:** Array of matching messages with context.
+
+### Resources
+- `zedchat://status` - Server status (JSON)
+- `zedchat://welcome` - Welcome message (text)
+- `zedchat://config` - Server configuration (JSON)
+
+## Usage Examples
+
+### List all threads
 ```json
 {
-  "mcpServers": {
-    "zedchat": {
-      "command": "swift",
-      "args": ["run", "mcp-zedchat"],
-      "cwd": "/path/to/MCP-ZedChat"
-    }
+  "tool": "zed-list-threads",
+  "arguments": {}
+}
+```
+
+### Get a specific thread
+```json
+{
+  "tool": "zed-get-thread",
+  "arguments": {
+    "id": "thread-id-here"
   }
 }
 ```
 
-After updating the configuration, restart Claude Desktop.
-
-## Available Capabilities
-
-### Tools
-
-The server includes several example tools:
-
-#### `echo`
-Echoes back a provided message.
-
-**Arguments**:
-- `message` (string, required): The message to echo
-
-**Example**:
+### Get thread with filters (only user messages)
 ```json
 {
-  "message": "Hello, World!"
+  "tool": "zed-get-thread",
+  "arguments": {
+    "id": "thread-id-here",
+    "filters": [
+      { "type": "voice", "value": "user" }
+    ]
+  }
 }
 ```
 
-#### `calculate`
-Performs basic arithmetic calculations.
-
-**Arguments**:
-- `operation` (string, required): One of "add", "subtract", "multiply", "divide"
-- `a` (number, required): First number
-- `b` (number, required): Second number
-
-**Example**:
+### Search thread titles
 ```json
 {
-  "operation": "add",
-  "a": 10,
-  "b": 5
+  "tool": "zed-search-threads",
+  "arguments": {
+    "query": "refactoring"
+  }
 }
 ```
 
-#### `timestamp`
-Returns the current timestamp in ISO 8601 format.
-
-**Arguments**: None
-
-### Resources
-
-The server provides several informational resources:
-
-#### `zedchat://status`
-Current server status and statistics (JSON format)
-
-#### `zedchat://welcome`
-Welcome message and server information (plain text)
-
-#### `zedchat://config`
-Server configuration details (JSON format)
-
-Resources support subscriptions, allowing clients to receive updates when resources change.
-
-### Prompts
-
-Pre-configured conversation starters:
-
-#### `greeting`
-A friendly greeting prompt.
-
-**Arguments**:
-- `name` (string, optional): Name of the person to greet
-
-#### `code-review`
-Start a code review conversation.
-
-**Arguments**:
-- `language` (string, required): Programming language
-- `focus` (string, optional): What to focus on (e.g., security, performance)
-
-#### `debug-session`
-Initialize a debugging conversation.
-
-**Arguments**:
-- `error` (string, required): Error message or description
-- `context` (string, optional): Additional context
-
-## Development
-
-### Project Structure
-
-```
-MCP-ZedChat/
-├── Package.swift                  # Swift package manifest
-├── Sources/
-│   └── MCPZedChat/
-│       ├── main.swift            # Entry point
-│       ├── MCPService.swift      # Service lifecycle management
-│       └── ServerHandlers.swift  # Tool/Resource/Prompt handlers
-├── Tests/
-│   └── MCPZedChatTests/
-│       └── MCPZedChatTests.swift # Comprehensive tests
-└── README.md
+### Search within thread content
+```json
+{
+  "tool": "zed-search-thread-content",
+  "arguments": {
+    "query": "ToolImplementation",
+    "caseInsensitive": true
+  }
+}
 ```
 
-### Adding New Tools
+## Database Location
 
-To add a new tool, edit `Sources/MCPZedChat/ServerHandlers.swift`:
-
-1. Add the tool definition in `registerToolHandlers`:
-
-```swift
-Tool(
-    name: "my-new-tool",
-    description: "Description of what it does",
-    inputSchema: .object([
-        "type": "object",
-        "properties": .object([
-            "param1": .object([
-                "type": "string",
-                "description": "Parameter description"
-            ])
-        ]),
-        "required": .array([.string("param1")])
-    ])
-)
+Zed stores chat threads at:
+```
+~/Library/Application Support/Zed/threads/threads.db
 ```
 
-2. Add the handler in the `CallTool` switch statement:
-
-```swift
-case "my-new-tool":
-    guard let param1 = params.arguments?["param1"]?.stringValue else {
-        return .init(
-            content: [.text("Error: Missing 'param1' parameter")],
-            isError: true
-        )
-    }
-    
-    // Your implementation here
-    let result = doSomething(with: param1)
-    
-    return .init(
-        content: [.text(result)],
-        isError: false
-    )
-```
-
-### Adding New Resources
-
-Edit the `registerResourceHandlers` function:
-
-1. Add the resource to the list:
-
-```swift
-Resource(
-    name: "My Resource",
-    uri: "zedchat://my-resource",
-    description: "Resource description",
-    mimeType: "text/plain"
-)
-```
-
-2. Add a case in the `ReadResource` handler:
-
-```swift
-case "zedchat://my-resource":
-    let data = getResourceData() // Your implementation
-    return .init(contents: [
-        .text(data, uri: params.uri, mimeType: "text/plain")
-    ])
-```
-
-### Adding New Prompts
-
-Edit the `registerPromptHandlers` function similarly to tools and resources.
-
-### Running Tests
-
-```bash
-# Run all tests
-swift test
-
-# Run tests with verbose output
-swift test --verbose
-
-# Run a specific test
-swift test --filter MCPZedChatTests.testEchoTool
-```
-
-### Logging
-
-The server uses Swift's `Logging` framework. Adjust log levels in `main.swift`:
-
-```swift
-var handler = StreamLogHandler.standardOutput(label: label)
-handler.logLevel = .debug  // Change to .info, .warning, .error as needed
-```
-
-## Debugging
-
-### Enable Debug Logging
-
-Set the log level to `.debug` in `main.swift` to see detailed protocol messages:
-
-```swift
-handler.logLevel = .debug
-```
-
-### Test with MCP Inspector
-
-Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to test your server:
-
-```bash
-# Install MCP Inspector
-npm install -g @modelcontextprotocol/inspector
-
-# Run with your server
-mcp-inspector swift run mcp-zedchat
-```
-
-### Common Issues
-
-**Server doesn't start**:
-- Check that all dependencies are resolved: `swift package resolve`
-- Verify Swift version: `swift --version`
-
-**Claude Desktop doesn't see the server**:
-- Verify the path in `claude_desktop_config.json` is absolute
-- Check that the executable exists and has execute permissions
-- Restart Claude Desktop after configuration changes
-- Check Claude Desktop logs (Help → View Logs)
-
-**Tools return errors**:
-- Enable debug logging to see full error messages
-- Check that argument names match exactly (case-sensitive)
-- Verify argument types (string, number, boolean, etc.)
-
-## Architecture
-
-### Service Lifecycle
-
-The server uses [Swift Service Lifecycle](https://github.com/swift-server/swift-service-lifecycle) for proper startup and shutdown:
-
-- **SIGTERM** and **SIGINT** signals trigger graceful shutdown
-- Server properly closes transport connections
-- Configurable shutdown timeout prevents hanging processes
-
-### Transport Layer
-
-Currently uses **stdio transport** for communication:
-- Reads from standard input
-- Writes to standard output
-- Compatible with Claude Desktop and other MCP clients
-
-Future versions may support:
-- HTTP/SSE transport for remote servers
-- Custom transports for specialized use cases
-
-### Concurrency
-
-Built with Swift's modern concurrency model:
-- All handlers are async
-- Uses actors where appropriate for thread safety
-- Leverages structured concurrency with ServiceLifecycle
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass: `swift test`
-5. Submit a pull request
+The database contains compressed (zstd) JSON data for each thread. This server handles decompression and parsing automatically.
 
 ## Resources
 
 - [MCP Specification](https://spec.modelcontextprotocol.io/)
 - [MCP Swift SDK](https://github.com/modelcontextprotocol/swift-sdk)
-- [Swift Service Lifecycle](https://github.com/swift-server/swift-service-lifecycle)
-- [Claude Desktop Configuration](https://docs.anthropic.com/claude/docs/mcp)
+- [JSON Schema Reference](https://json-schema.org/understanding-json-schema/reference)
+- [Zed Editor](https://zed.dev/)
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Support
-
-For issues or questions:
-- Open an issue on GitHub
-- Check the [MCP Swift SDK documentation](https://github.com/modelcontextprotocol/swift-sdk)
-- Join the MCP community discussions
-
----
-
-**Note**: This is a template. Customize the tools, resources, and prompts to fit your specific use case!
+MIT License

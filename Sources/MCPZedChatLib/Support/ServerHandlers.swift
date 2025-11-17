@@ -6,17 +6,14 @@ import Foundation
 enum ServerHandlers {
 	private static let logger = Logger(label: "com.zedchat.mcp-handlers")
 
+	/// Registered tool implementations from the central registry
+	private static let toolImplementations = ToolRegistry.registeredTools
+
 	/// Register all handlers on the given server
 	static func registerHandlers(on server: Server) async {
 		await registerToolHandlers(on: server)
 		await registerResourceHandlers(on: server)
 		await registerLifecycleHandlers(on: server)
-	}
-
-	static let dbAccessor = ZedThreadsInterface()
-	private static let encoder = JSONEncoder().with {
-		$0.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-		$0.dateEncodingStrategy = .iso8601
 	}
 
 	// MARK: - Tool Handlers
@@ -26,254 +23,43 @@ enum ServerHandlers {
 		await server.withMethodHandler(ListTools.self) { _ in
 			logger.debug("Listing tools")
 
-			let tools = [
-				Tool(
-					name: "zed-list-threads",
-					description: "List all Zed chat threads from the threads database",
-					inputSchema: .object([
-						"type": "object",
-						"properties": .object([
-							"limit": .object([
-								"type": "integer",
-								"description": "Limit result count"
-							])
-						])
-					])
-				),
-				Tool(
-					name: "zed-get-thread",
-					description: "Get a specific Zed chat thread by ID",
-					inputSchema: .object([
-						"type": "object",
-						"properties": .object([
-							"id": .object([
-								"type": "string",
-								"description": "The thread ID"
-							]),
-							"page": .object([
-								"type": "integer",
-								"description": "The output is paged to handle resources more efficiently. Defaults to `0` when omitted."
-							]),
-							"filters": .object([
-								"type": "array",
-								"description": "Filters to apply to the message output on the given thread. Notes: Filters are applied before paging, therefore consistent filtering should lead to consistent paging... Tho if filters are used, the `messageRange` property will be unreliable. Uses AND logic. `query` input is always caseInsensitive in this search.",
-								"items": .object([
-									"type": "object",
-									"properties": .object([
-										"type": .object([
-											"type": "string",
-											"enum": .array([
-												.string("voice"),
-												.string("query"),
-												.string("isTool"),
-												.string("isThinking"),
-											])
-										]),
-										"value": .object([
-											"type": "string",
-											"description": "Value for filters that need one (like query). Valid values for each enum are:\nvoice: `agent` or `user`\nquery: any valid search query\nisTool: true/false\nisThinking: true/false"
-										])
-									]),
-									"required": .array([.string("type"), .string("value")])
-								])
-							]),
-						]),
-						"required": .array([.string("id")])
-					])
-				),
-				Tool(
-					name: "zed-search-threads",
-					description: "Search Zed chat threads by summary text",
-					inputSchema: .object([
-						"type": "object",
-						"properties": .object([
-							"query": .object([
-								"type": "string",
-								"description": "Search query to match against thread summaries"
-							]),
-							"limit": .object([
-								"type": "integer",
-								"description": "Limit result count"
-							])
-						]),
-						"required": .array([.string("query")])
-					])
-				),
-				Tool(
-					name: "zed-search-thread-content",
-					description: "Search Zed chat threads by decoding their thread content and searching inside",
-					inputSchema: .object([
-						"type": "object",
-						"properties": .object([
-							"query": .object([
-								"type": "string",
-								"description": "Search query to match against thread summaries. There's no special syntax. Matches must be exact (apart from case sensitivity, specified in another argument)"
-							]),
-							"page": .object([
-								"type": "integer",
-								"description": "Results are paged because they can be obscenely large. This allows for more efficient, bite sized search. If omitted, defaults to `0`"
-							]),
-							"caseInsensitive": .object([
-								"type": "boolean",
-								"description": "Whether the query matching is case sensitive"
-							]),
-							"onlyFirstMatchPerThread": .object([
-								"type": "boolean",
-								"description": "When true, message filtering will stop on a thread once a message is found with a match. When false, all matching messages on the thread will be returned. It is more efficient to set to true, when exhaustion isn't necessary."
-							]),
-
-
-						]),
-						"required": .array([.string("query")])
-					])
-				)
-			]
+			let tools = toolImplementations.values.map { $0.tool }
 
 			return .init(tools: tools, nextCursor: nil)
 		}
+
+		let dbAccessor = ZedThreadsInterface()
 
 		// Handle tool calls
 		await server.withMethodHandler(CallTool.self) { params in
 			logger.debug("Calling tool", metadata: ["tool": "\(params.name)"])
 
 			do throws(ContentError) {
-				guard let command = ZedThreadCommands(rawValue: params.name) else {
-					throw .contentError(message: "Unknown tool")
+				// Find the matching tool implementation via dictionary lookup (O(1))
+				let command = ToolCommand(rawValue: params.name)
+				guard let toolType = toolImplementations[command] else {
+					throw .contentError(message: "Unknown tool '\(params.name)'")
 				}
 
-				switch command {
-				case .zedListThreads:
-					let limit = params.integers.limit
-					return try await handleZedListThreads(limit: limit)
-
-				case .zedGetThread:
-					guard
-						let id = params.strings.id
-					else { throw .contentError(message: "Missing thread id") }
-
-					let filtersArray = params.arguments?["filters"]?.arrayValue ?? []
-					let filters: [ThreadFilter] = filtersArray.compactMap { filterObjectContainer -> ThreadFilter? in
-						guard
-							let filterObject = filterObjectContainer.objectValue,
-							let type = filterObject["type"]?.stringValue,
-							let value = filterObject["value"]?.stringValue
-						else { return nil }
-
-						switch type {
-						case "voice":
-							switch value {
-							case "user": return .voice(.user)
-							case "agent": return .voice(.agent)
-							default: return nil
-							}
-						case "query": return .query(value)
-						case "isTool": return .isTool(Bool(value) ?? true)
-						case "isThinking": return .isThinking(Bool(value) ?? true)
-						default: return nil
-						}
-					}
-
-					return try await handleZedGetThread(threadID: id, page: params.integers.page ?? 0, andFilters: filters)
-
-				case .zedSearchThreads:
-					let limit = params.integers.limit
-					return try await handleZedSearchThreads(arguments: params.arguments, limit: limit)
-
-				case .zedSearchThreadContent:
-					guard let query = params.strings.query else { throw .contentError(message: "Missing query argument") }
-					return try await handleZedSearchThreadsContent(
-						query: query,
-						page: params.integers.page,
-						caseInsensitive: params.bools.caseInsensitive ?? true,
-						onlyFirstMatchPerThread: params.bools.onlyFirstMatchPerThread ?? false)
-				}
+				// Create instance and execute
+				let toolInstance = try toolType.init(arguments: params, dbAccessor: dbAccessor)
+				return try await toolInstance()
 			} catch {
+				let errorMessage: String
 				switch error {
+				case .missingArgument(let arg):
+					errorMessage = "Missing required argument: '\(arg)'"
+				case .mismatchedType(let arg, let expected):
+					errorMessage = "Argument '\(arg)' has incorrect type (expected: \(expected))"
+				case .initializationFailed(let message):
+					errorMessage = "Initialization failed: \(message)"
 				case .contentError(message: let message):
-					let errorMessage = "Error performing \(params.name): \(message ?? "Content Error")"
-					return .init(content: [.text(errorMessage)], isError: true)
+					errorMessage = "Error performing \(params.name): \(message ?? "Content Error")"
 				case .other(let error):
-					return .init(content: [.text("Error performing \(params.name): \(error)")], isError: true)
+					errorMessage = "Error performing \(params.name): \(error)"
 				}
+				return .init(content: [.text(errorMessage)], isError: true)
 			}
-		}
-	}
-
-	// MARK: - Zed Threads Tool Handlers
-
-	private static func handleZedListThreads(limit: Int?) async throws(ContentError) -> CallTool.Result {
-		do {
-			let threads = try await dbAccessor.fetchAllThreads(limit: limit)
-			async let consumableThreads = threads.asyncConcurrentMap { await $0.consumable }
-
-			let output = await StructuredContentOutput(
-				inputRequest: "",
-				metaData: .init(resultCount: threads.count),
-				content: consumableThreads)
-
-			return output.toResult()
-		} catch {
-			throw .other(error)
-		}
-	}
-
-	private static func handleZedGetThread(threadID: String, page: Int, andFilters: [ThreadFilter]) async throws(ContentError) -> CallTool.Result {
-		do {
-			let thread = try await dbAccessor.fetchThread(id: threadID)
-
-			let messageRange = page..<(page+10)
-			async let response = thread.consumableWithContent(withMessageRange: messageRange, andFilters: andFilters)
-
-			let output = await StructuredContentOutput(
-				inputRequest: "\(ZedThreadCommands.zedGetThread): id: \(threadID) range: \(messageRange, default: "full range")",
-				metaData: .init(summary: "Thread Details"),
-				content: [response].compactMap(\.self))
-
-			return output.toResult()
-		} catch {
-			throw .other(error)
-		}
-	}
-
-	private static func handleZedSearchThreads(arguments: [String: Value]?, limit: Int?) async throws(ContentError) -> CallTool.Result {
-		guard let query = arguments?["query"]?.stringValue else {
-			return .init(
-				content: [.text("Error: Missing 'query' parameter")],
-				isError: true
-			)
-		}
-
-		do {
-			let threadResults = try dbAccessor.searchThreadTitles(for: query, limit: limit)
-			async let consumableThreadResults = threadResults.asyncConcurrentMap { await $0.consumable }
-
-			let output = await StructuredContentOutput(
-				inputRequest: "\(ZedThreadCommands.zedSearchThreads): query: \(query) limit: \(limit, default: "all")",
-				metaData: .init(summary: "Thread Titles Search Results", resultCount: threadResults.count),
-				content: consumableThreadResults)
-
-			return output.toResult()
-		} catch {
-			throw .other(error)
-		}
-	}
-
-	private static func handleZedSearchThreadsContent(query: String, page: Int?, caseInsensitive: Bool, onlyFirstMatchPerThread: Bool) async throws(ContentError) -> CallTool.Result {
-		do {
-			let threadResults = try await dbAccessor.searchThreadContent(
-				for: query,
-				caseInsensitive: caseInsensitive,
-				page: page ?? 0,
-				onlyFirstMatchPerThread: onlyFirstMatchPerThread)
-
-			let output = StructuredContentOutput(
-				inputRequest: "\(ZedThreadCommands.zedSearchThreadContent): query: \(query), page: \(page ?? 0), caseInsensitive: \(caseInsensitive), onlyFirstMatchPerThread: \(onlyFirstMatchPerThread)",
-				metaData: .init(summary: "Thread Content Search Results", resultCount: threadResults.count),
-				content: threadResults)
-
-			return output.toResult()
-		} catch {
-			throw .other(error)
 		}
 	}
 
@@ -347,7 +133,7 @@ enum ServerHandlers {
 					"capabilities": {
 						"tools": true,
 						"resources": true,
-						"prompts": true,
+						"prompts": false,
 						"sampling": false
 					},
 					"transport": "stdio"
@@ -373,9 +159,6 @@ enum ServerHandlers {
 
 			return .init()
 		}
-
-		// Note: Resource unsubscribe handler not included as UnsubscribeResource
-		// may not be available in the current MCP Swift SDK version
 	}
 
 	// MARK: - Lifecycle Handlers
@@ -386,7 +169,7 @@ enum ServerHandlers {
 			logger.info("Shutdown request received - preparing to exit")
 			Task {
 				guard let server else {
-					throw NSError(domain: "foo", code: 12)
+					throw NSError(domain: "com.zedchat.mcp-server", code: 1)
 				}
 				try await Task.sleep(for: .milliseconds(100))
 				logger.info("Calling server.stop()")
@@ -396,83 +179,5 @@ enum ServerHandlers {
 			}
 			return .init()
 		}
-	}
-
-	// MARK: - Output Structure
-
-	private struct StructuredContentOutput<Content: Codable & Sendable>: Codable, Sendable {
-		let inputRequest: String
-		let metaData: Metadata?
-		let content: [Content]
-
-		struct Metadata: Codable, Sendable {
-			let summary: String?
-			let resultCount: Int?
-
-			init(summary: String? = nil, resultCount: Int? = nil) {
-				self.summary = summary
-				self.resultCount = resultCount
-			}
-		}
-
-		func toResult() -> CallTool.Result {
-			var accumulator: [Tool.Content] = []
-
-			if let metaData {
-				let jsonString = try? Self.encodeToJSONString(metaData)
-				jsonString.map { accumulator.append(.text($0)) }
-			}
-
-			for item in content {
-				let jsonString = try? Self.encodeToJSONString(item)
-				jsonString.map { accumulator.append(.text($0)) }
-			}
-
-			return .init(content: accumulator, isError: false)
-		}
-
-		private static func encodeToJSONString<E: Encodable>(_ encodable: E) throws -> String {
-			let data = try encoder.encode(encodable)
-			return String(decoding: data, as: UTF8.self)
-		}
-	}
-
-	enum ContentError: Error {
-		case contentError(message: String?)
-		case other(Error)
-	}
-}
-
-// MARK: - Value Extensions
-
-extension Value {
-	var numberValue: Double? {
-		// Value in MCP SDK is ExpressibleByIntegerLiteral and ExpressibleByFloatLiteral
-		// Try different approaches to extract numeric value
-
-		// First, check if it's directly convertible via mirror inspection
-		let mirror = Mirror(reflecting: self)
-
-		// Check for integer value
-		if let intVal = mirror.children.first(where: { $0.label == "integer" || $0.label == "int" })?.value as? Int {
-			return Double(intVal)
-		}
-
-		// Check for double/float value
-		if let doubleVal = mirror.children.first(where: { $0.label == "number" || $0.label == "double" })?.value as? Double {
-			return doubleVal
-		}
-
-		// Try the accessor methods if they exist
-		if let num = self.doubleValue {
-			return num
-		}
-
-		// Try string parsing as last resort
-		if let str = self.stringValue, let num = Double(str) {
-			return num
-		}
-
-		return nil
 	}
 }
