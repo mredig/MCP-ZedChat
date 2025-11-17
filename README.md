@@ -176,26 +176,33 @@ swift test
 ## Available Tools
 
 ### `zed-list-threads`
-List all Zed chat threads from the database.
+List all Zed chat threads from the database with optional date filtering.
 
 **Parameters:**
 - `limit` (optional, integer) - Limit result count
+- `startDate` (optional, string) - Filter threads updated after this date (ISO 8601 format, e.g. '2024-01-01T00:00:00Z')
+- `endDate` (optional, string) - Filter threads updated before this date (ISO 8601 format, e.g. '2024-12-31T23:59:59Z')
 
 **Returns:** Array of thread summaries with metadata.
 
-### `zed-get-thread`
-Get a specific thread by ID with optional filtering and pagination.
+**Note:** Date filtering uses the thread's `updatedAt` timestamp, which reflects the last modification time of the entire conversation.
+
+### `zed-get-message`
+Get a specific message from a thread with character-level pagination.
 
 **Parameters:**
-- `id` (required, string) - The thread ID
-- `page` (optional, integer) - Page number for message pagination (default: 0, 10 messages per page)
-- `filters` (optional, array) - Array of filter objects:
-  - `{ "type": "voice", "value": "user" }` or `"agent"` - Filter by message sender
-  - `{ "type": "query", "value": "search text" }` - Filter messages containing text
-  - `{ "type": "isTool", "value": "true" }` or `"false"` - Filter tool messages
-  - `{ "type": "isThinking", "value": "true" }` or `"false"` - Filter thinking messages
+- `threadID` (required, string) - The thread ID
+- `messageIndex` (required, integer) - The index of the message within the thread (0-based)
+- `offset` (optional, integer) - Starting character position within the message (default: 0)
+- `limit` (optional, integer) - Maximum number of characters to return (default: 1000)
 
-**Returns:** Thread details with filtered/paginated messages.
+**Returns:** Message content with pagination info. Includes:
+- Message role (user/assistant)
+- Paginated content
+- Total message length
+- Whether more content is available (`hasMore`, `nextOffset`)
+
+**Use case:** After finding a message via search, use this tool to retrieve its full content in manageable chunks.
 
 ### `zed-search-threads`
 Search thread titles/summaries.
@@ -207,7 +214,7 @@ Search thread titles/summaries.
 **Returns:** Array of matching threads.
 
 ### `zed-search-thread-content`
-Search within thread message content (searches all threads).
+Search within thread message content with limited context to reduce token usage.
 
 **Parameters:**
 - `query` (required, string) - Search query (exact match, case-insensitive by default)
@@ -215,7 +222,14 @@ Search within thread message content (searches all threads).
 - `caseInsensitive` (optional, boolean) - Whether search is case-insensitive (default: true)
 - `onlyFirstMatchPerThread` (optional, boolean) - Stop after first match per thread (default: false)
 
-**Returns:** Array of matching messages with context.
+**Returns:** Array of matches with limited context (~100 characters before and after the match). Each result includes:
+- `threadID` and `threadSummary`
+- `messageIndex` - Use with `zed-get-message` to retrieve full message
+- `matchPosition` - Character position of match in message
+- `contextBefore`, `matchText`, `contextAfter` - Limited surrounding text
+- `messageRole` - Message sender (user/assistant)
+
+**Use case:** Search broadly for content, then use `zed-get-message` with the returned `messageIndex` to see full context if needed.
 
 ### Resources
 - `zedchat://status` - Server status (JSON)
@@ -232,25 +246,37 @@ Search within thread message content (searches all threads).
 }
 ```
 
-### Get a specific thread
+### List threads from the last week
 ```json
 {
-  "tool": "zed-get-thread",
+  "tool": "zed-list-threads",
   "arguments": {
-    "id": "thread-id-here"
+    "startDate": "2024-11-10T00:00:00Z",
+    "limit": 20
   }
 }
 ```
 
-### Get thread with filters (only user messages)
+### Get a specific message from a thread
 ```json
 {
-  "tool": "zed-get-thread",
+  "tool": "zed-get-message",
   "arguments": {
-    "id": "thread-id-here",
-    "filters": [
-      { "type": "voice", "value": "user" }
-    ]
+    "threadID": "thread-id-here",
+    "messageIndex": 5
+  }
+}
+```
+
+### Get message with character pagination
+```json
+{
+  "tool": "zed-get-message",
+  "arguments": {
+    "threadID": "thread-id-here",
+    "messageIndex": 5,
+    "offset": 1000,
+    "limit": 1000
   }
 }
 ```
@@ -265,13 +291,37 @@ Search within thread message content (searches all threads).
 }
 ```
 
-### Search within thread content
+### Search within thread content (returns limited context)
 ```json
 {
   "tool": "zed-search-thread-content",
   "arguments": {
     "query": "ToolImplementation",
     "caseInsensitive": true
+  }
+}
+```
+
+**Example result:**
+```json
+{
+  "threadID": "abc123",
+  "messageIndex": 5,
+  "matchPosition": 1234,
+  "contextBefore": "...text before ",
+  "matchText": "ToolImplementation",
+  "contextAfter": " text after...",
+  "messageRole": "user"
+}
+```
+
+Then retrieve full message if needed:
+```json
+{
+  "tool": "zed-get-message",
+  "arguments": {
+    "threadID": "abc123",
+    "messageIndex": 5
   }
 }
 ```

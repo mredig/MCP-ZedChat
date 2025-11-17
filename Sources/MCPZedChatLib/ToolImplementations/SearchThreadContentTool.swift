@@ -11,7 +11,7 @@ struct SearchThreadContentTool: ToolImplementation {
 	
 	static let tool = Tool(
 		name: command.rawValue,
-		description: "Search Zed chat threads by decoding their thread content and searching inside",
+		description: "Search Zed chat threads by decoding their thread content and searching inside. Returns matches with limited context (~100 characters before and after the match) to reduce token usage. Use the returned messageIndex with zed-get-message to retrieve the full message if needed.",
 		inputSchema: .object([
 			"type": "object",
 			"properties": .object([

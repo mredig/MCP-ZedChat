@@ -207,6 +207,30 @@ extension ZedThread {
 			case .noop: break
 			}
 		}
+		
+		/// Extract all text content from the message (for searching/display)
+		var textContent: String {
+			let content: [Content]
+			switch self {
+			case .user(let userMsg):
+				content = userMsg.content
+			case .agent(let agentMsg):
+				content = agentMsg.content
+			case .noop:
+				return ""
+			}
+			
+			return content.compactMap { item -> String? in
+				switch item {
+				case .text(let text):
+					return text
+				case .thinking(let thinking):
+					return thinking.text
+				case .toolUse, .mention, .other:
+					return nil
+				}
+			}.joined(separator: " ")
+		}
 	}
 }
 

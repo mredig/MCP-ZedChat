@@ -14,7 +14,7 @@ enum ToolRegistry {
 	/// The key is the tool's command, the value is the tool implementation type.
 	static let registeredTools: [ToolCommand: any ToolImplementation.Type] = [
 		.listThreads: ListThreadsTool.self,
-		.getThread: GetThreadTool.self,
+		.getMessage: GetMessageTool.self,
 		.searchThreads: SearchThreadsTool.self,
 		.searchThreadContent: SearchThreadContentTool.self,
 	]

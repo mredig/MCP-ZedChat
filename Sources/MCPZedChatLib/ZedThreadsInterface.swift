@@ -44,13 +44,46 @@ struct ZedThreadsInterface {
 				results = consumable?.thread?.messages(containing: query, caseInsensitive: caseInsensitive) ?? []
 			}
 
-			let contentResults = results.map {
-				Threads.ContentResult(
+			let contentResults = results.compactMap { result -> Threads.ContentResult? in
+				// Extract text content from message
+				let messageText = result.message.textContent
+				guard !messageText.isEmpty else { return nil }
+				
+				// Find the match position in the text
+				let searchOptions: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
+				guard let matchRange = messageText.range(of: query, options: searchOptions) else {
+					return nil
+				}
+				
+				let matchPosition = messageText.distance(from: messageText.startIndex, to: matchRange.lowerBound)
+				
+				// Extract context (100 chars before and after)
+				let contextSize = 100
+				let beforeStart = messageText.index(matchRange.lowerBound, offsetBy: -contextSize, limitedBy: messageText.startIndex) ?? messageText.startIndex
+				let afterEnd = messageText.index(matchRange.upperBound, offsetBy: contextSize, limitedBy: messageText.endIndex) ?? messageText.endIndex
+				
+				let contextBefore = String(messageText[beforeStart..<matchRange.lowerBound])
+				let matchText = String(messageText[matchRange])
+				let contextAfter = String(messageText[matchRange.upperBound..<afterEnd])
+				
+				// Determine message role
+				let role: String
+				switch result.message {
+				case .user: role = "user"
+				case .agent: role = "assistant"
+				case .noop: role = "noop"
+				}
+				
+				return Threads.ContentResult(
 					threadID: consumable?.id,
 					threadSummary: consumable?.summary,
 					threadMessageCount: consumable?.thread?.messageCount ?? 0,
-					messageIndex: $0.index,
-					message: $0.message)
+					messageIndex: result.index,
+					matchPosition: matchPosition,
+					contextBefore: contextBefore,
+					matchText: matchText,
+					contextAfter: contextAfter,
+					messageRole: role)
 			}
 
 			return contentResults
@@ -79,7 +112,11 @@ extension Threads {
 		let threadSummary: String?
 		let threadMessageCount: Int
 		let messageIndex: Int
-		let message: ZedThread.Message
+		let matchPosition: Int
+		let contextBefore: String
+		let matchText: String
+		let contextAfter: String
+		let messageRole: String
 	}
 
 	@MainActor
