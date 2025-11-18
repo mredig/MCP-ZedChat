@@ -569,7 +569,7 @@ extension ZedThread {
 		if let startingFrom {
 			let nextIndex = messages.index(after: startingFrom)
 			guard messages.indices.contains(nextIndex) else { return nil }
-			potential = messages[startingFrom..<messages.endIndex]
+			potential = messages[nextIndex..<messages.endIndex]
 		} else {
 			potential = messages[messages.startIndex..<messages.endIndex]
 		}
