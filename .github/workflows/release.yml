@@ -26,8 +26,9 @@ jobs:
         run: |
           cd .build/apple/Products/Release
           tar -czf mcp-zedchat-macos.tar.gz mcp-zedchat
-          shasum -a 256 mcp-zedchat-macos.tar.gz
+          shasum -a 256 mcp-zedchat-macos.tar.gz > mcp-zedchat-macos.tar.gz.sha256
           mv mcp-zedchat-macos.tar.gz $GITHUB_WORKSPACE/
+          mv mcp-zedchat-macos.tar.gz.sha256 $GITHUB_WORKSPACE/
       
       - name: Extract version from tag
         id: version
@@ -36,7 +37,9 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: mcp-zedchat-macos.tar.gz
+          files: |
+            mcp-zedchat-macos.tar.gz
+            mcp-zedchat-macos.tar.gz.sha256
           tag_name: ${{ steps.version.outputs.VERSION }}
           name: Release ${{ steps.version.outputs.VERSION }}
           draft: false
