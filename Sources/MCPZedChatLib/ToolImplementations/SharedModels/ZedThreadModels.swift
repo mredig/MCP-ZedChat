@@ -560,11 +560,7 @@ extension ZedThread {
 
 	func nextMessage(containing query: String, caseInsensitive: Bool, startingFrom: Int? = nil) -> (index: Int, message: Message)? {
 		let potential: [Message].SubSequence
-
-		let regexQuery = Regex {
-			query
-		}
-			.ignoresCase(caseInsensitive)
+		let searchOptions: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
 
 		if let startingFrom {
 			let nextIndex = messages.index(after: startingFrom)
@@ -589,15 +585,15 @@ extension ZedThread {
 			for content in contents {
 				switch content {
 				case .text(let text):
-					guard text.contains(regexQuery) else { continue }
+					guard text.range(of: query, options: searchOptions) != nil else { continue }
 				case .mention(let mention):
-					guard mention.content.contains(regexQuery) else { continue }
+					guard mention.content.range(of: query, options: searchOptions) != nil else { continue }
 				case .toolUse(let toolUse):
-					guard toolUse.rawInput?.contains(regexQuery) == true else { continue }
+					guard toolUse.rawInput?.range(of: query, options: searchOptions) != nil else { continue }
 				case .other(let otherString):
-					guard otherString.contains(regexQuery) else { continue }
+					guard otherString.range(of: query, options: searchOptions) != nil else { continue }
 				case .thinking(let thinking):
-					guard thinking.text.contains(regexQuery) else { continue }
+					guard thinking.text.range(of: query, options: searchOptions) != nil else { continue }
 				}
 				return (index, message)
 			}
