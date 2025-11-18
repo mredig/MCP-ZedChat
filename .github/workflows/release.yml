@@ -6,6 +6,9 @@ on:
       - '[0-9]+.[0-9]+.[0-9]+'
       - '[0-9]+.[0-9]+.[0-9]+b[0-9]+'
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: macos-26
