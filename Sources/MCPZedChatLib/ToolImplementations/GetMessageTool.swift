@@ -75,14 +75,12 @@ struct GetMessageTool: ToolImplementation {
 	/// Execute the tool
 	func callAsFunction() async throws(ContentError) -> CallTool.Result {
 		do {
-			let thread = try await dbAccessor.fetchThread(id: threadID)
-			
-			// Get the thread content
-			guard let consumable = await thread.consumableWithContent,
-				  let zedThread = consumable.thread else {
-				throw ContentError.contentError(message: "Failed to load thread content")
-			}
-			
+			// Get the thread content (uses cache if available)
+			guard
+				let consumable = try await dbAccessor.fetchThreadWithContent(id: threadID),
+				let zedThread = consumable.thread
+			else { throw ContentError.contentError(message: "Failed to load thread content") }
+
 			// Validate message index
 			guard messageIndex < zedThread.messages.count else {
 				throw ContentError.contentError(message: "messageIndex \(messageIndex) out of range (thread has \(zedThread.messages.count) messages)")

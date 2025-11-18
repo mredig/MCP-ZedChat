@@ -4,8 +4,43 @@ import SwiftPizzaSnips
 import libzstd
 import Algorithms
 
-struct ZedThreadsInterface {
+struct ZedThreadsInterface: Sendable {
 	let db: ThreadsDB
+	
+	// Cache for decompressed thread content (NSCache is thread-safe)
+	private let threadCache: ThreadCache
+	
+	// Thread-safe cache wrapper
+	private final class ThreadCache: @unchecked Sendable {
+		private let cache = NSCache<NSString, CachedThreadContent>()
+		
+		init() {
+			cache.countLimit = 500 // Cache up to 500 threads
+			cache.totalCostLimit = 50 * 1024 * 1024 // 50 MB limit
+		}
+		
+		func object(forKey key: NSString) -> CachedThreadContent? {
+			cache.object(forKey: key)
+		}
+		
+		func setObject(_ obj: CachedThreadContent, forKey key: NSString, cost: Int) {
+			cache.setObject(obj, forKey: key, cost: cost)
+		}
+		
+		/// Create cache key from thread ID and updated timestamp
+		static func makeCacheKey(threadID: String, updatedAt: String) -> NSString {
+			"\(threadID)-\(updatedAt)" as NSString
+		}
+	}
+	
+	// Wrapper class for NSCache (must be a class, not a struct)
+	private final class CachedThreadContent: @unchecked Sendable {
+		let consumable: Threads.Consumable
+		
+		init(consumable: Threads.Consumable) {
+			self.consumable = consumable
+		}
+	}
 
 	init() {
 		let threadsDBFilePath = URL
@@ -14,6 +49,7 @@ struct ZedThreadsInterface {
 			.appending(component: "threads")
 			.appendingPathExtension("db")
 		self.db = ThreadsDB(url: threadsDBFilePath, readOnly: true)
+		self.threadCache = ThreadCache()
 	}
 
 	func fetchAllThreads(limit: Int?) async throws -> [Threads] {
@@ -22,6 +58,11 @@ struct ZedThreadsInterface {
 
 	func fetchThread(id: String) async throws -> Threads {
 		try await db.threads.find(id).unwrap("No thread found matching id \(id)")
+	}
+	
+	func fetchThreadWithContent(id: String) async throws -> Threads.Consumable? {
+		let thread = try await fetchThread(id: id)
+		return await getCachedThreadContent(for: thread)
 	}
 
 	func searchThreadTitles(for query: String, limit: Int?) throws -> [Threads] {
@@ -35,7 +76,7 @@ struct ZedThreadsInterface {
 		let allThreads = try await fetchAllThreads(limit: nil)
 
 		let matches = await allThreads.asyncConcurrentMap { thread in
-			let consumable = await thread.consumableWithContent
+			let consumable = await self.getCachedThreadContent(for: thread)
 
 			let results: [(index: Int, message: ZedThread.Message)]
 			if onlyFirstMatchPerThread {
@@ -96,6 +137,36 @@ struct ZedThreadsInterface {
 		guard page < pages.count else { return [] }
 
 		return Array(pages[_offset: page])
+	}
+	
+	/// Get thread content from cache or decompress if not cached
+	/// Uses composite key (threadID + updatedAt) to invalidate stale cache entries
+	private func getCachedThreadContent(for thread: Threads) async -> Threads.Consumable? {
+		guard let threadID = thread.id else { return nil }
+		
+		// Create cache key with threadID + updatedAt to handle updates
+		let cacheKey = ThreadCache.makeCacheKey(threadID: threadID, updatedAt: thread.updatedAt)
+		
+		// Check cache first - if hit, skip decompression entirely
+		if let cached = threadCache.object(forKey: cacheKey) {
+			return cached.consumable
+		}
+		
+		// Cache miss or stale - decompress the thread
+		guard let consumable = await thread.consumableWithContent else {
+			return nil
+		}
+		
+		// Calculate approximate cost (characters + overhead)
+		let cost = consumable.thread?.messages.reduce(0) { sum, msg in
+			sum + msg.textContent.count
+		} ?? 0
+		
+		// Store in cache with composite key
+		let cached = CachedThreadContent(consumable: consumable)
+		threadCache.setObject(cached, forKey: cacheKey, cost: cost)
+		
+		return consumable
 	}
 }
 
