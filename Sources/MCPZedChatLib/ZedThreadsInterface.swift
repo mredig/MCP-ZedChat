@@ -6,37 +6,37 @@ import Algorithms
 
 struct ZedThreadsInterface: Sendable {
 	let db: ThreadsDB
-	
+
 	// Cache for decompressed thread content (NSCache is thread-safe)
 	private let threadCache: ThreadCache
-	
+
 	// Thread-safe cache wrapper
 	private final class ThreadCache: @unchecked Sendable {
 		private let cache = NSCache<NSString, CachedThreadContent>()
-		
+
 		init() {
 			cache.countLimit = 500 // Cache up to 500 threads
 			cache.totalCostLimit = 50 * 1024 * 1024 // 50 MB limit
 		}
-		
+
 		func object(forKey key: NSString) -> CachedThreadContent? {
 			cache.object(forKey: key)
 		}
-		
+
 		func setObject(_ obj: CachedThreadContent, forKey key: NSString, cost: Int) {
 			cache.setObject(obj, forKey: key, cost: cost)
 		}
-		
+
 		/// Create cache key from thread ID and updated timestamp
 		static func makeCacheKey(threadID: String, updatedAt: String) -> NSString {
 			"\(threadID)-\(updatedAt)" as NSString
 		}
 	}
-	
+
 	// Wrapper class for NSCache (must be a class, not a struct)
 	private final class CachedThreadContent: @unchecked Sendable {
 		let consumable: Threads.Consumable
-		
+
 		init(consumable: Threads.Consumable) {
 			self.consumable = consumable
 		}
@@ -59,7 +59,7 @@ struct ZedThreadsInterface: Sendable {
 	func fetchThread(id: String) async throws -> Threads {
 		try await db.threads.find(id).unwrap("No thread found matching id \(id)")
 	}
-	
+
 	func fetchThreadWithContent(id: String) async throws -> Threads.Consumable? {
 		let thread = try await fetchThread(id: id)
 		return await getCachedThreadContent(for: thread)
@@ -71,9 +71,33 @@ struct ZedThreadsInterface: Sendable {
 		}
 	}
 
-	func searchThreadContent(for query: String, caseInsensitive: Bool, page: Int, onlyFirstMatchPerThread: Bool) async throws -> [Threads.ContentResult] {
+	func searchThreadContent(
+		for query: String,
+		caseInsensitive: Bool,
+		page: Int,
+		onlyFirstMatchPerThread: Bool,
+		scopedThreadIDs: Set<String>? = nil,
+		excludeThreadIDs: Bool = false
+	) async throws -> [Threads.ContentResult] {
 		guard page >= 0 else { return [] }
-		let allThreads = try await fetchAllThreads(limit: nil)
+		var allThreads = try await fetchAllThreads(limit: nil)
+
+		// Apply thread filtering if scopeToThreadIDs is provided
+		if let scopeToThreadIDs = scopedThreadIDs {
+			if excludeThreadIDs {
+				// Exclude these threads
+				allThreads = allThreads.filter { thread in
+					guard let threadID = thread.id else { return false }
+					return !scopeToThreadIDs.contains(threadID)
+				}
+			} else {
+				// Include only these threads
+				allThreads = allThreads.filter { thread in
+					guard let threadID = thread.id else { return false }
+					return scopeToThreadIDs.contains(threadID)
+				}
+			}
+		}
 
 		let matches = await allThreads.asyncConcurrentMap { thread in
 			let consumable = await self.getCachedThreadContent(for: thread)
@@ -89,24 +113,24 @@ struct ZedThreadsInterface: Sendable {
 				// Extract text content from message
 				let messageText = result.message.textContent
 				guard !messageText.isEmpty else { return nil }
-				
+
 				// Find the match position in the text
 				let searchOptions: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
 				guard let matchRange = messageText.range(of: query, options: searchOptions) else {
 					return nil
 				}
-				
+
 				let matchPosition = messageText.distance(from: messageText.startIndex, to: matchRange.lowerBound)
-				
+
 				// Extract context (100 chars before and after)
 				let contextSize = 100
 				let beforeStart = messageText.index(matchRange.lowerBound, offsetBy: -contextSize, limitedBy: messageText.startIndex) ?? messageText.startIndex
 				let afterEnd = messageText.index(matchRange.upperBound, offsetBy: contextSize, limitedBy: messageText.endIndex) ?? messageText.endIndex
-				
+
 				let contextBefore = String(messageText[beforeStart..<matchRange.lowerBound])
 				let matchText = String(messageText[matchRange])
 				let contextAfter = String(messageText[matchRange.upperBound..<afterEnd])
-				
+
 				// Determine message role
 				let role: String
 				switch result.message {
@@ -114,7 +138,7 @@ struct ZedThreadsInterface: Sendable {
 				case .agent: role = "assistant"
 				case .noop: role = "noop"
 				}
-				
+
 				return Threads.ContentResult(
 					threadID: consumable?.id,
 					threadSummary: consumable?.summary,
@@ -138,34 +162,34 @@ struct ZedThreadsInterface: Sendable {
 
 		return Array(pages[_offset: page])
 	}
-	
+
 	/// Get thread content from cache or decompress if not cached
 	/// Uses composite key (threadID + updatedAt) to invalidate stale cache entries
 	private func getCachedThreadContent(for thread: Threads) async -> Threads.Consumable? {
 		guard let threadID = thread.id else { return nil }
-		
+
 		// Create cache key with threadID + updatedAt to handle updates
 		let cacheKey = ThreadCache.makeCacheKey(threadID: threadID, updatedAt: thread.updatedAt)
-		
+
 		// Check cache first - if hit, skip decompression entirely
 		if let cached = threadCache.object(forKey: cacheKey) {
 			return cached.consumable
 		}
-		
+
 		// Cache miss or stale - decompress the thread
 		guard let consumable = await thread.consumableWithContent else {
 			return nil
 		}
-		
+
 		// Calculate approximate cost (characters + overhead)
 		let cost = consumable.thread?.messages.reduce(0) { sum, msg in
 			sum + msg.textContent.count
 		} ?? 0
-		
+
 		// Store in cache with composite key
 		let cached = CachedThreadContent(consumable: consumable)
 		threadCache.setObject(cached, forKey: cacheKey, cost: cost)
-		
+
 		return consumable
 	}
 }
@@ -209,7 +233,7 @@ extension Threads {
 		guard let decompressed = decompressZstd(dataAsData) else {
 			return nil
 		}
-		
+
 		// Parse JSON into ZedThread structure
 		let parsedThread: ZedThread?
 		do {
