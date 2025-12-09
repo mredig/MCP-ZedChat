@@ -15,6 +15,7 @@ enum ToolRegistry {
 	static let registeredTools: [ToolCommand: any ToolImplementation.Type] = [
 		.listThreads: ListThreadsTool.self,
 		.getMessage: GetMessageTool.self,
+		.getMetadata: GetMetadataTool.self,
 		.searchThreads: SearchThreadsTool.self,
 		.searchThreadContent: SearchThreadContentTool.self,
 	]

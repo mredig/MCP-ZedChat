@@ -52,6 +52,7 @@ The AI automatically searches your history, retrieves relevant snippets, and app
 
 - **`zed-list-threads`** - List threads with optional date filtering and limits
 - **`zed-get-message`** - Retrieve specific messages with character-level pagination
+- **`zed-get-metadata`** - Get metadata for threads or messages (message counts, roles, timestamps, model info, content statistics)
 - **`zed-search-threads`** - Search thread titles/summaries  
 - **`zed-search-thread-content`** - Search within messages, returns limited context snippets
 
