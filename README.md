@@ -5,8 +5,11 @@ A Swift MCP (Model Context Protocol) server for searching and accessing Zed chat
 ## TLDR - Quick Start
 
 **Install via Homebrew:**
+Use brew to get the [pizza tool package](https://github.com/mredig/homebrew-pizza-mcp-tools), containing this (and other tools).
+
 ```bash
 brew tap mredig/pizza-mcp-tools
+brew update
 brew install mcp-zedchat
 ```
 
@@ -20,10 +23,14 @@ swift build -c release
 **Add to Zed settings** (`~/.config/zed/settings.json`):
 ```json
 {
-  "context_servers": {
-    "zedchat": {
-      "command": "mcp-zedchat"
-    }
+  /// The name of your MCP server
+  "zed-chat-history-search": {
+    /// The command which runs the MCP server
+    "command": "mcp-zedchat", // if built from source, provide the whole path
+    /// The arguments to pass to the MCP server
+    "args": [],
+    /// The environment variables to set
+    "env": {}
   }
 }
 ```
