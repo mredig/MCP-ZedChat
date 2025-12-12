@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build-macos:
     runs-on: macos-26
     
     steps:
@@ -32,6 +32,57 @@ jobs:
           mv mcp-zedchat-macos.tar.gz $GITHUB_WORKSPACE/
           mv mcp-zedchat-macos.tar.gz.sha256 $GITHUB_WORKSPACE/
       
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: |
+            mcp-zedchat-macos.tar.gz
+            mcp-zedchat-macos.tar.gz.sha256
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Build for Linux
+        run: |
+          swift build -c release
+      
+      - name: Create tarball
+        run: |
+          BUILD_DIR=$(swift build -c release --show-bin-path)
+          cd $BUILD_DIR
+          tar -czf mcp-zedchat-linux.tar.gz mcp-zedchat
+          shasum -a 256 mcp-zedchat-linux.tar.gz > mcp-zedchat-linux.tar.gz.sha256
+          mv mcp-zedchat-linux.tar.gz $GITHUB_WORKSPACE/
+          mv mcp-zedchat-linux.tar.gz.sha256 $GITHUB_WORKSPACE/
+      
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            mcp-zedchat-linux.tar.gz
+            mcp-zedchat-linux.tar.gz.sha256
+
+  release:
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+      
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+      
       - name: Extract version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
@@ -42,6 +93,8 @@ jobs:
           files: |
             mcp-zedchat-macos.tar.gz
             mcp-zedchat-macos.tar.gz.sha256
+            mcp-zedchat-linux.tar.gz
+            mcp-zedchat-linux.tar.gz.sha256
           tag_name: ${{ steps.version.outputs.VERSION }}
           name: Release ${{ steps.version.outputs.VERSION }}
           draft: false

@@ -125,3 +125,4 @@ mcp-server.log
 
 # Internal development notes
 ai feedback for improvements.md
+*.profraw
