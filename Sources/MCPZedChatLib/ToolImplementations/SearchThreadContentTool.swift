@@ -11,7 +11,7 @@ struct SearchThreadContentTool: ToolImplementation {
 
 	static let tool = Tool(
 		name: command.rawValue,
-		description: "Search Zed chat threads by decoding their thread content and searching inside. Returns matches with limited context (~100 characters before and after the match) to reduce token usage. Use the returned messageIndex with zed-get-message to retrieve the full message if needed. Can optionally scope search to specific threads or exclude specific threads.",
+		description: "Search Zed chat threads by decoding their thread content and searching inside. Returns matches with limited context (~100 characters before and after the match) to reduce token usage. Use the returned messageIndex with zed-get-message to retrieve the full message if needed. Can optionally scope search to specific threads or exclude specific threads. NOTE: The current conversation that is driving this search is NOT automatically excluded from the results — callers must either ignore that thread in the returned results or explicitly exclude it (for example by using `scopeToThreadIDs` with `excludeThreadIDs` once the thread ID is known).",
 		inputSchema: .object([
 			"type": "object",
 			"properties": .object([
@@ -40,7 +40,7 @@ struct SearchThreadContentTool: ToolImplementation {
 				]),
 				"excludeThreadIDs": .object([
 					"type": "boolean",
-					"description": "When false (default), scopeToThreadIDs acts as an inclusion list (only search these threads). When true, scopeToThreadIDs acts as an exclusion list (search all threads except these). Ignored if scopeToThreadIDs is not provided."
+					"description": "When false (default), scopeToThreadIDs acts as an inclusion list (only search these threads). When true, scopeToThreadIDs acts as an exclusion list (search all threads except these). Ignored if scopeToThreadIDs is not provided. TIP: It's good practice to exclude the current thread ID (once identified) to avoid finding matches in the current conversation."
 				])
 			]),
 			"required": .array([.string("query")])
