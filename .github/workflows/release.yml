@@ -3,8 +3,8 @@ name: Build and Release
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+b[0-9]+'
+      - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+b[0-9]+"
 
 permissions:
   contents: write
@@ -12,18 +12,18 @@ permissions:
 jobs:
   build-macos:
     runs-on: macos-26
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.1.app
-      
+
       - name: Build universal binary
         run: |
           swift build -c release --arch arm64 --arch x86_64
-      
+
       - name: Create tarball
         run: |
           cd .build/apple/Products/Release
@@ -31,7 +31,7 @@ jobs:
           shasum -a 256 mcp-zedchat-macos.tar.gz > mcp-zedchat-macos.tar.gz.sha256
           mv mcp-zedchat-macos.tar.gz $GITHUB_WORKSPACE/
           mv mcp-zedchat-macos.tar.gz.sha256 $GITHUB_WORKSPACE/
-      
+
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -42,24 +42,58 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
-    
+
+    container: "swift:6.2.3-noble"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Build for Linux
+
+      - name: Install Dependencies
         run: |
-          swift build -c release
-      
+          apt update
+          apt install -y wget
+
+      - name: Download and extract SQLite static library from Alpine Linux
+        run: |
+          # Download the sqlite-static and sqlite-dev packages from Alpine edge repository
+          wget https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/sqlite-static-3.51.2-r0.apk
+          wget https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/sqlite-dev-3.51.2-r0.apk
+
+          # Extract both .apk files (they're just tar.gz archives)
+          mkdir -p alpine-sqlite-static alpine-sqlite-dev
+          tar -xzf sqlite-static-3.51.2-r0.apk -C alpine-sqlite-static
+          tar -xzf sqlite-dev-3.51.2-r0.apk -C alpine-sqlite-dev
+
+          # Install the static library and headers to a location Swift can find
+          mkdir -p /usr/local/musl/lib
+          mkdir -p /usr/local/musl/include
+          cp alpine-sqlite-static/usr/lib/libsqlite3.a /usr/local/musl/lib/
+          cp alpine-sqlite-dev/usr/include/sqlite3.h /usr/local/musl/include/
+          cp alpine-sqlite-dev/usr/include/sqlite3ext.h /usr/local/musl/include/
+
+      - name: Show Swift Version
+        run: swift --version
+
+      - name: Install Static Linux Swift SDK
+        run: |
+          swift sdk install https://download.swift.org/swift-6.2.3-release/static-sdk/swift-6.2.3-RELEASE/swift-6.2.3-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz --checksum f30ec724d824ef43b5546e02ca06a8682dafab4b26a99fbb0e858c347e507a2c
+
+      - name: Build for Linux with Static SDK
+        run: |
+          swift build -c release --swift-sdk x86_64-swift-linux-musl \
+            -Xcc -I/usr/local/musl/include \
+            -Xlinker -L/usr/local/musl/lib
+
       - name: Create tarball
         run: |
-          BUILD_DIR=$(swift build -c release --show-bin-path)
+          BUILD_DIR=$(swift build -c release  --swift-sdk x86_64-swift-linux-musl --show-bin-path)
           cd $BUILD_DIR
           tar -czf mcp-zedchat-linux.tar.gz mcp-zedchat
           shasum -a 256 mcp-zedchat-linux.tar.gz > mcp-zedchat-linux.tar.gz.sha256
           mv mcp-zedchat-linux.tar.gz $GITHUB_WORKSPACE/
           mv mcp-zedchat-linux.tar.gz.sha256 $GITHUB_WORKSPACE/
-      
+
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -71,22 +105,22 @@ jobs:
   release:
     needs: [build-macos, build-linux]
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
           name: macos-build
-      
+
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
           name: linux-build
-      
+
       - name: Extract version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-      
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
