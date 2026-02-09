@@ -177,8 +177,8 @@ extension ZedThread {
 					return accumulator
 				}
 
-				for (key, tool) in toolResults {
-					accumulator.append(.init(context: "ToolID", content: .text(tool.toolUseID)))
+				for (_, tool) in toolResults {
+					accumulator.append(.init(context: "\nToolID", content: .text(tool.toolUseID)))
 					guard let content = tool.content else {
 						let errorString = {
 							guard let isError = tool.isError else {
@@ -186,17 +186,17 @@ extension ZedThread {
 							}
 							return "\(isError)"
 						}()
-						accumulator.append(.init(context: "ToolError", content: .text(errorString)))
+						accumulator.append(.init(context: "\nToolError", content: .text(errorString)))
 						continue
 					}
 					if let toolName = tool.toolName {
-						accumulator.append(.init(context: "ToolName", content: .text(toolName)))
+						accumulator.append(.init(context: "\nToolName", content: .text(toolName)))
 					}
 					switch content {
 					case .text(let string):
-						accumulator.append(.init(context: "ToolContent", content: .text(string)))
-					case .image(let imageContent):
-						accumulator.append(.init(context: "ToolContent", content: .other("Generated Image - Unable to render in text")))
+						accumulator.append(.init(context: "\nToolContent", content: .text(string)))
+					case .image:
+						accumulator.append(.init(context: "\nToolContent", content: .other("Generated Image - Unable to render in text")))
 					}
 				}
 				return accumulator
