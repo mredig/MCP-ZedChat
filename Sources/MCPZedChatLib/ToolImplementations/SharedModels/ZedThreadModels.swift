@@ -265,7 +265,7 @@ extension ZedThread {
 				case .thinking(let thinking):
 					return "\(item.context): \(thinking.text)"
 				case .toolUse(let toolUse):
-					return "\(item.context): \(toolUse.id)"
+					return "\(item.context): \(toolUse.description)"
 				case .mention, .other:
 					return nil
 				}
@@ -295,11 +295,26 @@ extension ZedThread.Message {
 			let signature: String
 		}
 
-		struct ToolUse: Codable, Sendable {
+		struct ToolUse: Codable, Sendable, CustomStringConvertible {
 			let id: String
 			let name: String
 			let rawInput: String?
 			let input: [String: AnyCodable]?
+
+			var description: String {
+				var accumulator: [String] = []
+
+				accumulator.append(name)
+				accumulator.append("(\(id))")
+
+				if let rawInput {
+					accumulator.append("`\(rawInput)`")
+				} else if let input {
+					accumulator.append("\(input)")
+				}
+
+				return accumulator.joined(separator: " ")
+			}
 
 			enum CodingKeys: String, CodingKey {
 				case id
