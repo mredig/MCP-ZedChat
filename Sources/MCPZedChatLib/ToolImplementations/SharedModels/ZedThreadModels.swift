@@ -158,11 +158,49 @@ extension ZedThread {
 		struct UserMessage: Codable, Sendable {
 			let id: String
 			let content: [Content]
+
+			var wrappedContent: [Content.Wrapper] {
+				content.map { .init(context: "User", content: $0) }
+			}
 		}
 
 		struct AgentMessage: Codable, Sendable {
 			let content: [Content]
 			let toolResults: [String: ToolResult]?
+
+			var wrappedContent: [Content.Wrapper] {
+				var accumulator: [Content.Wrapper] = content.map {
+					.init(context: "Agent", content: $0)
+				}
+
+				guard let toolResults else {
+					return accumulator
+				}
+
+				for (key, tool) in toolResults {
+					accumulator.append(.init(context: "ToolID", content: .text(tool.toolUseID)))
+					guard let content = tool.content else {
+						let errorString = {
+							guard let isError = tool.isError else {
+								return "unknown"
+							}
+							return "\(isError)"
+						}()
+						accumulator.append(.init(context: "ToolError", content: .text(errorString)))
+						continue
+					}
+					if let toolName = tool.toolName {
+						accumulator.append(.init(context: "ToolName", content: .text(toolName)))
+					}
+					switch content {
+					case .text(let string):
+						accumulator.append(.init(context: "ToolContent", content: .text(string)))
+					case .image(let imageContent):
+						accumulator.append(.init(context: "ToolContent", content: .other("Generated Image - Unable to render in text")))
+					}
+				}
+				return accumulator
+			}
 
 			enum CodingKeys: String, CodingKey {
 				case content
@@ -210,23 +248,25 @@ extension ZedThread {
 		
 		/// Extract all text content from the message (for searching/display)
 		var textContent: String {
-			let content: [Content]
+			let content: [Content.Wrapper]
 			switch self {
 			case .user(let userMsg):
-				content = userMsg.content
+				content = userMsg.wrappedContent
 			case .agent(let agentMsg):
-				content = agentMsg.content
+				content = agentMsg.wrappedContent
 			case .noop:
 				return ""
 			}
 			
 			return content.compactMap { item -> String? in
-				switch item {
+				switch item.content {
 				case .text(let text):
-					return text
+					return "\(item.context): \(text)"
 				case .thinking(let thinking):
-					return thinking.text
-				case .toolUse, .mention, .other:
+					return "\(item.context): \(thinking.text)"
+				case .toolUse(let toolUse):
+					return "\(item.context): \(toolUse.id)"
+				case .mention, .other:
 					return nil
 				}
 			}.joined(separator: " ")
@@ -244,6 +284,11 @@ extension ZedThread.Message {
 		case mention(Mention)
 		case thinking(Thinking)
 		case other(String)
+
+		struct Wrapper: Codable, Sendable {
+			let context: String
+			let content: Content
+		}
 
 		struct Thinking: Codable, Sendable {
 			let text: String
