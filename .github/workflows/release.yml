@@ -52,18 +52,36 @@ jobs:
       - name: Install Dependencies
         run: |
           apt update
-          apt install -y wget
+          apt install -y wget jq
+
+      - name: Install AlpineManifestReader
+        run: |
+          # Download and install AlpineManifestReader (Linux static build) so we can parse APKINDEX
+          wget -qO- https://github.com/mredig/AlpineManifestReader/releases/latest/download/alpineManifestReader-linux.tar.gz | tar xz
+          mv AlpineManifestReader /usr/local/bin/AlpineManifestReader
+          AlpineManifestReader --help >/dev/null
 
       - name: Download and extract SQLite static library from Alpine Linux
         run: |
+          # Fetch the Alpine package index
+          INDEX_URL="https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/APKINDEX.tar.gz"
+          wget -qO- "$INDEX_URL" | tar -xzO APKINDEX > APKINDEX
+
+          # Use AlpineManifestReader to retrieve the current versions
+          STATIC_VERSION=$(AlpineManifestReader APKINDEX --package sqlite-static | jq -r '.packageVersion')
+          DEV_VERSION=$(AlpineManifestReader APKINDEX --package sqlite-dev | jq -r '.packageVersion')
+
+          echo "Found sqlite-static version: $STATIC_VERSION"
+          echo "Found sqlite-dev version: $DEV_VERSION"
+
           # Download the sqlite-static and sqlite-dev packages from Alpine edge repository
-          wget https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/sqlite-static-3.51.2-r0.apk
-          wget https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/sqlite-dev-3.51.2-r0.apk
+          wget "https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/sqlite-static-${STATIC_VERSION}.apk"
+          wget "https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/sqlite-dev-${DEV_VERSION}.apk"
 
           # Extract both .apk files (they're just tar.gz archives)
           mkdir -p alpine-sqlite-static alpine-sqlite-dev
-          tar -xzf sqlite-static-3.51.2-r0.apk -C alpine-sqlite-static
-          tar -xzf sqlite-dev-3.51.2-r0.apk -C alpine-sqlite-dev
+          tar -xzf "sqlite-static-${STATIC_VERSION}.apk" -C alpine-sqlite-static
+          tar -xzf "sqlite-dev-${DEV_VERSION}.apk" -C alpine-sqlite-dev
 
           # Install the static library and headers to a location Swift can find
           mkdir -p /usr/local/musl/lib
