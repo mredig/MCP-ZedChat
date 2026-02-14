@@ -338,10 +338,10 @@ extension ZedThread.Message {
 				}
 
 				struct Selection: Codable, Sendable {
-					let path: URL
+					let path: URL?
 					let range: Range<Int>
 
-					init(path: URL, range: Range<Int>) {
+					init(path: URL?, range: Range<Int>) {
 						self.path = path
 						self.range = range
 					}
@@ -349,7 +349,7 @@ extension ZedThread.Message {
 					init(from decoder: any Decoder) throws {
 						let container = try decoder.container(keyedBy: CodingKeys.self)
 
-						let path = try container.decode(String.self, forKey: .path)
+						let path = try container.decodeIfPresent(String.self, forKey: .path)
 						let rangeContainer = try container.nestedContainer(keyedBy: CodingKeys.self, forKey: .range)
 
 						let rangeStart = try rangeContainer.decode(Int.self, forKey: .start)
@@ -357,7 +357,7 @@ extension ZedThread.Message {
 
 						let range = rangeStart..<rangeEnd
 
-						self.init(path: URL(filePath: path), range: range)
+						self.init(path: path.map { URL(filePath: $0) }, range: range)
 					}
 
 					enum CodingKeys: String, CodingKey {
@@ -369,7 +369,7 @@ extension ZedThread.Message {
 
 					func encode(to encoder: any Encoder) throws {
 						var container = encoder.container(keyedBy: CodingKeys.self)
-						try container.encode(path.path(percentEncoded: false), forKey: .path)
+						try container.encodeIfPresent(path?.path(percentEncoded: false), forKey: .path)
 
 						var lineRangeContainer = container.nestedContainer(keyedBy: CodingKeys.self, forKey: .range)
 						try lineRangeContainer.encode(range.lowerBound, forKey: .start)
