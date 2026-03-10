@@ -158,9 +158,12 @@ struct ZedThreadsInterface: Sendable {
 
 		let pages = allMatches.lazy.chunks(ofCount: 10)
 
-		guard page < pages.count else { return [] }
+		guard
+			let pageIndex = pages.index(pages.startIndex, offsetBy: page, limitedBy: pages.endIndex),
+			pageIndex < pages.endIndex
+		else { return [] }
 
-		return Array(pages[_offset: page])
+		return Array(pages[pageIndex])
 	}
 
 	/// Get thread content from cache or decompress if not cached
