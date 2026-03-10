@@ -17,7 +17,7 @@ struct SearchThreadContentTool: ToolImplementation {
 			"properties": .object([
 				"query": .object([
 					"type": "string",
-					"description": "Search query to match against thread summaries. There's no special syntax. Matches must be exact (apart from case sensitivity, specified in another argument)"
+					"description": "Search query to match against thread summaries. There's no special syntax. Queries are literal (apart from case sensitivity, specified in another argument), so 'foo bar' only matches 'foo bar', but neither 'foo', nor 'bar' on their own."
 				]),
 				"page": .object([
 					"type": "integer",
