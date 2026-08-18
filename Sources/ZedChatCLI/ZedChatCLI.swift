@@ -4,10 +4,10 @@ import ZedChatLib
 
 @main
 struct ZedChatCLI: AsyncParsableCommand {
-	@Argument(help: "search query")
-	var search: String
-
-	func run() async throws {
-
-	}
+	static let configuration: CommandConfiguration = .init(
+		commandName: "zedchatcli",
+		version: "0.0.1",
+		subcommands: [
+			ListThreads.self
+		])
 }

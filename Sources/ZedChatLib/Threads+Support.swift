@@ -1,6 +1,25 @@
 import Foundation
 import libzstd
 
+extension Threads: CustomDebugStringConvertible, CustomStringConvertible {
+	public var description: String {
+		"""
+		RawThread:
+			id: \(id, default: "No ID")
+			summary: \(summary)
+			updatedAt: \(updatedAt)
+		"""
+	}
+
+	public var debugDescription: String {
+		"""
+		\(description)
+			dataType: \(dataType)
+			dataInfo: \(data.count) bytes
+		"""
+	}
+}
+
 extension Threads {
 	public var uuid: UUID? { id.flatMap(UUID.init(uuidString:)) }
 	public var dataAsData: Data { Data(data) }
