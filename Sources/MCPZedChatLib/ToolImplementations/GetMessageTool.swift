@@ -1,5 +1,6 @@
-import MCP
 import Foundation
+import MCP
+import ZedChatLib
 
 extension ToolCommand {
 	static let getMessage = ToolCommand(rawValue: "zed-get-message")

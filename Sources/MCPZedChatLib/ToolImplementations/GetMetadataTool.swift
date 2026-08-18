@@ -1,5 +1,6 @@
-import MCP
 import Foundation
+import MCP
+import ZedChatLib
 
 extension ToolCommand {
 	static let getMetadata = ToolCommand(rawValue: "zed-get-metadata")

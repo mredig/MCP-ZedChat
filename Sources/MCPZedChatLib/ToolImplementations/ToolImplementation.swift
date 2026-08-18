@@ -1,5 +1,6 @@
-import MCP
 import Foundation
+import MCP
+import ZedChatLib
 
 /// Protocol for tool implementations
 protocol ToolImplementation: Sendable {

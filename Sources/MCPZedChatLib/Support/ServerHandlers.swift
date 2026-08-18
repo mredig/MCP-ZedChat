@@ -1,6 +1,7 @@
 import MCP
 import Logging
 import Foundation
+import ZedChatLib
 
 /// ServerHandlers contains all MCP request handlers for tools, resources, and prompts
 enum ServerHandlers {
@@ -58,7 +59,7 @@ enum ServerHandlers {
 				case .other(let error):
 					errorMessage = "Error performing \(params.name): \(error)"
 				}
-				return .init(content: [.text(errorMessage)], isError: true)
+				return .init(content: [.text(text: errorMessage, annotations: nil, _meta: nil)], isError: true)
 			}
 		}
 	}

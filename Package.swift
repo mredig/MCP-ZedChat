@@ -17,10 +17,12 @@ let package = Package(
             name: "mcp-zedchat",
             targets: ["MCPZedChat"]
         ),
+		.library(name: "MCPZedChatLib", targets: ["MCPZedChatLib"]),
+		.library(name: "ZedChatLib", targets: ["ZedChatLib"]),
     ],
     dependencies: [
         // MCP Swift SDK
-        .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.10.0"),
+        .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.12.0"),
         // Swift Service Lifecycle for graceful shutdown
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.3.0"),
         // Swift Logging
@@ -33,15 +35,24 @@ let package = Package(
     ],
     targets: [
 		.target(
-			name: "MCPZedChatLib",
+			name: "ZedChatLib",
 			dependencies: [
 				.product(name: "Lighter", package: "Lighter"),
 				"SwiftPizzaSnips",
+				.product(name: "libzstd", package: "zstd"),
+				.product(name: "Algorithms", package: "swift-algorithms"),
+			],
+			swiftSettings: [
+				.enableUpcomingFeature("StrictConcurrency")
+			]
+		),
+		.target(
+			name: "MCPZedChatLib",
+			dependencies: [
+				"ZedChatLib",
 				.product(name: "MCP", package: "swift-sdk"),
 				.product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
 				.product(name: "Logging", package: "swift-log"),
-				.product(name: "libzstd", package: "zstd"),
-				.product(name: "Algorithms", package: "swift-algorithms"),
 			],
 			swiftSettings: [
 				.enableUpcomingFeature("StrictConcurrency")

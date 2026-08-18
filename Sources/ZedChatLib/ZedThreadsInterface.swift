@@ -4,7 +4,7 @@ import SwiftPizzaSnips
 import libzstd
 import Algorithms
 
-struct ZedThreadsInterface: Sendable {
+public struct ZedThreadsInterface: Sendable {
 	let db: ThreadsDB
 
 	// Cache for decompressed thread content (NSCache is thread-safe)
@@ -42,7 +42,7 @@ struct ZedThreadsInterface: Sendable {
 		}
 	}
 
-	init() {
+	public init() {
 		let threadsDBFilePath = URL
 			.homeDirectory
 			.appending(components: "Library", "Application Support", "Zed", "threads")
@@ -52,26 +52,26 @@ struct ZedThreadsInterface: Sendable {
 		self.threadCache = ThreadCache()
 	}
 
-	func fetchAllThreads(limit: Int?) async throws -> [Threads] {
+	public func fetchAllThreads(limit: Int?) async throws -> [Threads] {
 		try await db.threads.fetch(limit: limit, orderBy: \.updatedAt, .descending)
 	}
 
-	func fetchThread(id: String) async throws -> Threads {
+	public func fetchThread(id: String) async throws -> Threads {
 		try await db.threads.find(id).unwrap("No thread found matching id \(id)")
 	}
 
-	func fetchThreadWithContent(id: String) async throws -> Threads.Consumable? {
+	public func fetchThreadWithContent(id: String) async throws -> Threads.Consumable? {
 		let thread = try await fetchThread(id: id)
 		return await getCachedThreadContent(for: thread)
 	}
 
-	func searchThreadTitles(for query: String, limit: Int?) throws -> [Threads] {
+	public func searchThreadTitles(for query: String, limit: Int?) throws -> [Threads] {
 		try db.threads.fetch(limit: limit, orderBy: \.updatedAt, .descending) {
 			$0.summary.contains(query, caseInsensitive: true)
 		}
 	}
 
-	func searchThreadContent(
+	public func searchThreadContent(
 		for query: String,
 		caseInsensitive: Bool,
 		page: Int,
@@ -198,23 +198,23 @@ struct ZedThreadsInterface: Sendable {
 }
 
 extension Threads {
-	struct Consumable: Codable, Sendable {
-		let id: String?
-		let summary: String
-		let lastUpdate: Date
-		let thread: ZedThread?
+	public struct Consumable: Codable, Sendable {
+		public let id: String?
+		public let summary: String
+		public let lastUpdate: Date
+		public let thread: ZedThread?
 	}
 
-	struct ContentResult: Codable, Sendable {
-		let threadID: String?
-		let threadSummary: String?
-		let threadMessageCount: Int
-		let messageIndex: Int
-		let matchPosition: Int
-		let contextBefore: String
-		let matchText: String
-		let contextAfter: String
-		let messageRole: String
+	public struct ContentResult: Codable, Sendable {
+		public let threadID: String?
+		public let threadSummary: String?
+		public let threadMessageCount: Int
+		public let messageIndex: Int
+		public let matchPosition: Int
+		public let contextBefore: String
+		public let matchText: String
+		public let contextAfter: String
+		public let messageRole: String
 	}
 
 	@MainActor
@@ -223,7 +223,7 @@ extension Threads {
 	}
 
 	@MainActor
-	var consumable: Consumable? {
+	public var consumable: Consumable? {
 		.init(
 			id: id,
 			summary: summary,
@@ -232,7 +232,7 @@ extension Threads {
 	}
 
 	@MainActor
-	var consumableWithContent: Consumable? {
+	public var consumableWithContent: Consumable? {
 		guard let decompressed = decompressZstd(dataAsData) else {
 			return nil
 		}
@@ -254,7 +254,7 @@ extension Threads {
 			thread: parsedThread)
 	}
 
-	func consumableWithContent(withMessageRange messageRange: Range<Int>?, andFilters: [ThreadFilter]) async -> Consumable? {
+	public func consumableWithContent(withMessageRange messageRange: Range<Int>?, andFilters: [ThreadFilter]) async -> Consumable? {
 		guard let decompressed = decompressZstd(dataAsData) else {
 			return nil
 		}

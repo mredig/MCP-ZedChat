@@ -1,10 +1,10 @@
-enum ThreadFilter {
+public enum ThreadFilter: Sendable {
 	case voice(Voice)
 	case query(String)
 	case isTool(Bool)
 	case isThinking(Bool)
 
-	enum Voice {
+	public enum Voice: Sendable {
 		case user
 		case agent
 	}

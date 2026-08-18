@@ -1,5 +1,6 @@
-import MCP
 import Foundation
+import MCP
+import ZedChatLib
 
 extension ToolCommand {
 	static let searchThreadContent = ToolCommand(rawValue: "zed-search-thread-content")

@@ -3,21 +3,21 @@ import Foundation
 // MARK: - Zed Thread Models
 
 /// Represents a complete Zed chat thread with all messages and metadata
-struct ZedThread: Codable, Sendable {
-	let title: String?
-	private(set) var messages: [ZedThread.Message]
-	let messageCount: Int
-	private(set) var messageRange: Range<Int>?
-	let updatedAt: String
-	let detailedSummary: String?
-	let model: Model?
-	let completionMode: String?
-	let profile: String?
-	let version: String?
+public struct ZedThread: Codable, Sendable {
+	public let title: String?
+	public private(set) var messages: [ZedThread.Message]
+	public let messageCount: Int
+	public private(set) var messageRange: Range<Int>?
+	public let updatedAt: String
+	public let detailedSummary: String?
+	public let model: Model?
+	public let completionMode: String?
+	public let profile: String?
+	public let version: String?
 
 	private(set) var filters: [ThreadFilter] = []
 
-	init(title: String?, messages: [ZedThread.Message], updatedAt: String, detailedSummary: String?, model: Model?, completionMode: String?, profile: String?, version: String?) {
+	public init(title: String?, messages: [ZedThread.Message], updatedAt: String, detailedSummary: String?, model: Model?, completionMode: String?, profile: String?, version: String?) {
 		self.title = title
 		self.messages = messages
 		self.messageCount = messages.count
@@ -29,7 +29,7 @@ struct ZedThread: Codable, Sendable {
 		self.version = version
 	}
 
-	init(from decoder: any Decoder) throws {
+	public init(from decoder: any Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)
 
 		let version = try container.decodeIfPresent(String.self, forKey: .version)
@@ -140,9 +140,9 @@ struct ZedThread: Codable, Sendable {
 }
 
 extension ZedThread {
-	struct Model: Codable, Sendable {
-		let provider: String?
-		let model: String?
+	public struct Model: Codable, Sendable {
+		public let provider: String?
+		public let model: String?
 	}
 }
 
@@ -150,25 +150,25 @@ extension ZedThread {
 
 extension ZedThread {
 	/// A message in a Zed thread - can be from User or Agent
-	enum Message: Codable, Sendable {
+	public enum Message: Codable, Sendable {
 		case user(UserMessage)
 		case agent(AgentMessage)
 		case noop
 
-		struct UserMessage: Codable, Sendable {
-			let id: String
-			let content: [Content]
+		public struct UserMessage: Codable, Sendable {
+			public let id: String
+			public let content: [Content]
 
-			var wrappedContent: [Content.Wrapper] {
+			public var wrappedContent: [Content.Wrapper] {
 				content.map { .init(context: "User", content: $0) }
 			}
 		}
 
-		struct AgentMessage: Codable, Sendable {
-			let content: [Content]
-			let toolResults: [String: ToolResult]?
+		public struct AgentMessage: Codable, Sendable {
+			public let content: [Content]
+			public let toolResults: [String: ToolResult]?
 
-			var wrappedContent: [Content.Wrapper] {
+			public var wrappedContent: [Content.Wrapper] {
 				var accumulator: [Content.Wrapper] = content.map {
 					.init(context: "Agent", content: $0)
 				}
@@ -209,7 +209,7 @@ extension ZedThread {
 		}
 
 		// Custom decoding to handle the User/Agent wrapper
-		init(from decoder: Decoder) throws {
+		public init(from decoder: Decoder) throws {
 			let container = try decoder.singleValueContainer()
 			let dict: [String: AnyCodable]
 			do {
@@ -235,7 +235,7 @@ extension ZedThread {
 			}
 		}
 
-		func encode(to encoder: Encoder) throws {
+		public func encode(to encoder: Encoder) throws {
 			var container = encoder.singleValueContainer()
 			switch self {
 			case .user(let userMsg):
@@ -247,7 +247,7 @@ extension ZedThread {
 		}
 		
 		/// Extract all text content from the message (for searching/display)
-		var textContent: String {
+		public var textContent: String {
 			let content: [Content.Wrapper]
 			switch self {
 			case .user(let userMsg):
@@ -278,30 +278,30 @@ extension ZedThread {
 
 extension ZedThread.Message {
 	/// Content within a message - can be Text or ToolUse
-	enum Content: Codable, Sendable {
+	public enum Content: Codable, Sendable {
 		case text(String)
 		case toolUse(ToolUse)
 		case mention(Mention)
 		case thinking(Thinking)
 		case other(String)
 
-		struct Wrapper: Codable, Sendable {
-			let context: String
-			let content: Content
+		public struct Wrapper: Codable, Sendable {
+			public let context: String
+			public let content: Content
 		}
 
-		struct Thinking: Codable, Sendable {
-			let text: String
-			let signature: String
+		public struct Thinking: Codable, Sendable {
+			public let text: String
+			public let signature: String
 		}
 
-		struct ToolUse: Codable, Sendable, CustomStringConvertible {
-			let id: String
-			let name: String
-			let rawInput: String?
-			let input: [String: AnyCodable]?
+		public struct ToolUse: Codable, Sendable, CustomStringConvertible {
+			public let id: String
+			public let name: String
+			public let rawInput: String?
+			public let input: [String: AnyCodable]?
 
-			var description: String {
+			public var description: String {
 				var accumulator: [String] = []
 
 				accumulator.append(name)
@@ -324,11 +324,11 @@ extension ZedThread.Message {
 			}
 		}
 
-		struct Mention: Codable, Sendable {
-			let uri: URIContainer
-			let content: String
+		public struct Mention: Codable, Sendable {
+			public let uri: URIContainer
+			public let content: String
 
-			struct URIContainer: Codable, Sendable {
+			public struct URIContainer: Codable, Sendable {
 				let file: File?
 				let selection: Selection?
 
@@ -337,16 +337,16 @@ extension ZedThread.Message {
 					case selection = "Selection"
 				}
 
-				struct Selection: Codable, Sendable {
-					let path: URL?
-					let range: Range<Int>
+				public struct Selection: Codable, Sendable {
+					public let path: URL?
+					public let range: Range<Int>
 
-					init(path: URL?, range: Range<Int>) {
+					public init(path: URL?, range: Range<Int>) {
 						self.path = path
 						self.range = range
 					}
 
-					init(from decoder: any Decoder) throws {
+					public init(from decoder: any Decoder) throws {
 						let container = try decoder.container(keyedBy: CodingKeys.self)
 
 						let path = try container.decodeIfPresent(String.self, forKey: .path)
@@ -367,7 +367,7 @@ extension ZedThread.Message {
 						case end
 					}
 
-					func encode(to encoder: any Encoder) throws {
+					public func encode(to encoder: any Encoder) throws {
 						var container = encoder.container(keyedBy: CodingKeys.self)
 						try container.encodeIfPresent(path?.path(percentEncoded: false), forKey: .path)
 
@@ -403,7 +403,7 @@ extension ZedThread.Message {
 			}
 		}
 
-		init(from decoder: Decoder) throws {
+		public init(from decoder: Decoder) throws {
 			let container = try decoder.singleValueContainer()
 			let dict = try container.decode([String: AnyCodable].self)
 
@@ -425,7 +425,7 @@ extension ZedThread.Message {
 			}
 		}
 
-		func encode(to encoder: Encoder) throws {
+		public func encode(to encoder: Encoder) throws {
 			var container = encoder.singleValueContainer()
 			switch self {
 			case .text(let text):
@@ -446,11 +446,11 @@ extension ZedThread.Message {
 // MARK: - Tool Results
 
 extension ZedThread {
-	struct ToolResult: Codable, Sendable {
-		let content: Content?
-		let toolUseID: String
-		let toolName: String?
-		let isError: Bool?
+	public struct ToolResult: Codable, Sendable {
+		public let content: Content?
+		public let toolUseID: String
+		public let toolName: String?
+		public let isError: Bool?
 
 		enum CodingKeys: String, CodingKey {
 			case content
@@ -459,13 +459,13 @@ extension ZedThread {
 			case toolName = "tool_name"
 		}
 
-		enum Content: Codable, Sendable {
+		public enum Content: Codable, Sendable {
 			case text(String)
 			case image(ImageContent)
 
-			struct ImageContent: Codable, Sendable {
-				let data: String
-				let mimeType: String
+			public struct ImageContent: Codable, Sendable {
+				public let data: String
+				public let mimeType: String
 
 				enum CodingKeys: String, CodingKey {
 					case data
@@ -473,7 +473,7 @@ extension ZedThread {
 				}
 			}
 
-			init(from decoder: Decoder) throws {
+			public init(from decoder: Decoder) throws {
 				let container = try decoder.singleValueContainer()
 				let dict = try container.decode([String: AnyCodable].self)
 
@@ -490,7 +490,7 @@ extension ZedThread {
 				}
 			}
 
-			func encode(to encoder: Encoder) throws {
+			public func encode(to encoder: Encoder) throws {
 				var container = encoder.singleValueContainer()
 				switch self {
 				case .text(let text):
@@ -506,14 +506,14 @@ extension ZedThread {
 // MARK: - Helper Type for Dynamic JSON
 
 /// Type-erased wrapper for decoding heterogeneous JSON
-struct AnyCodable: Codable, @unchecked Sendable {
-	let value: Any
+public struct AnyCodable: Codable, @unchecked Sendable {
+	public let value: Any
 
-	init(_ value: Any) {
+	public init(_ value: Any) {
 		self.value = value
 	}
 
-	init(from decoder: Decoder) throws {
+	public init(from decoder: Decoder) throws {
 		let container = try decoder.singleValueContainer()
 
 		if let bool = try? container.decode(Bool.self) {
@@ -538,7 +538,7 @@ struct AnyCodable: Codable, @unchecked Sendable {
 		}
 	}
 
-	func encode(to encoder: Encoder) throws {
+	public func encode(to encoder: Encoder) throws {
 		var container = encoder.singleValueContainer()
 
 		switch value {
