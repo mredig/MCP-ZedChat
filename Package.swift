@@ -17,6 +17,10 @@ let package = Package(
             name: "mcp-zedchat",
             targets: ["MCPZedChat"]
         ),
+		.executable(
+			name: "zedchatcli",
+			targets: ["ZedChatCLI"]
+		),
 		.library(name: "MCPZedChatLib", targets: ["MCPZedChatLib"]),
 		.library(name: "ZedChatLib", targets: ["ZedChatLib"]),
     ],
@@ -69,6 +73,17 @@ let package = Package(
                 .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
+		.executableTarget(
+			name: "ZedChatCLI",
+			dependencies: [
+				"ZedChatLib",
+				.product(name: "ArgumentParser", package: "swift-argument-parser"),
+			],
+			path: "Sources/ZedChatCLI",
+			swiftSettings: [
+				.enableUpcomingFeature("StrictConcurrency")
+			]
+		),
         .testTarget(
             name: "MCPZedChatTests",
             dependencies: [
