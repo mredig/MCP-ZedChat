@@ -539,9 +539,6 @@ public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
   
   /// Primary key `id` (`TEXT`), optional (default: `nil`).
   public var id : String?
-
-	public var uuid: UUID? { id.flatMap(UUID.init(uuidString:)) }
-
   /// Column `summary` (`TEXT`), required.
   public var summary : String
   
@@ -553,9 +550,6 @@ public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
   
   /// Column `data` (`BLOB`), required.
   public var data : [ UInt8 ]
-
-	public var dataAsData: Data { Data(data) }
-
   /**
    * Initialize a new ``Threads`` record.
    * 
