@@ -112,6 +112,12 @@ extension Threads {
 			thread: parsedThread)
 	}
 
+	public func rawMessageThreadJSON() -> Data? {
+		let zstdData = dataAsData
+
+		return decompressZstd(zstdData)
+	}
+
 	private func decompressZstd(_ compressedData: Data) -> Data? {
 		// Create decompression context
 		guard let dctx = ZSTD_createDCtx() else {

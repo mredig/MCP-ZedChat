@@ -10,5 +10,6 @@ struct ZedChatCLI: AsyncParsableCommand {
 		subcommands: [
 			ListThreads.self,
 			GetMessage.self,
+			ExtractJSONBlobs.self,
 		])
 }
