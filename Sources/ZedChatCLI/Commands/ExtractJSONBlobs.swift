@@ -36,6 +36,9 @@ struct ExtractJSONBlobs: AsyncParsableCommand {
 				continue
 			}
 
+			let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: [])
+			let cleanJSON = try JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+
 			let dateString = {
 				guard let actualDate = Self.dateReader.date(from: thread.updatedAt) else {
 					return thread.updatedAt.replacingOccurrences(of: ":", with: "-")
@@ -43,11 +46,11 @@ struct ExtractJSONBlobs: AsyncParsableCommand {
 				return Self.dateFormatter.string(from: actualDate).replacingOccurrences(of: ":", with: "-")
 			}()
 
-			let filename = "\(dateString)_\(thread.id, default: "no id")_\(thread.summary.prefix(20)).messagethread"
+			let filename = "\(dateString)_\(thread.id, default: "no id")_\(thread.summary.prefix(20)).threadmessages"
 				.replacingOccurrences(of: "/", with: "_")
 			print(filename)
 			let outputURL = output.appending(component: filename)
-			try jsonData.write(to: outputURL)
+			try cleanJSON.write(to: outputURL)
 		}
 	}
 }
