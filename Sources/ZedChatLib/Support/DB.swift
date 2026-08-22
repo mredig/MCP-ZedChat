@@ -1,4 +1,4 @@
-// Autocreated by sqlite2swift at 2026-08-22T22:12:12Z
+// Autocreated by sqlite2swift at 2026-08-22T22:18:08Z
 
 import SQLite3
 import Foundation
@@ -49,14 +49,14 @@ public func sqlite3_create_zeddb(
 }
 
 /**
- * Insert a ``Threads`` record in the SQLite database.
+ * Insert a ``Thread`` record in the SQLite database.
  * 
  * This operates on a raw SQLite database handle (as returned by
  * `sqlite3_open`).
  * 
  * Example:
  * ```swift
- * let rc = sqlite3_threads_insert(db, record)
+ * let rc = sqlite3_thread_insert(db, record)
  * assert(rc == SQLITE_OK)
  * ```
  * 
@@ -67,18 +67,18 @@ public func sqlite3_create_zeddb(
  */
 @inlinable
 @discardableResult
-public func sqlite3_threads_insert(_ db: OpaquePointer!, _ record: inout Threads)
+public func sqlite3_thread_insert(_ db: OpaquePointer!, _ record: inout Thread)
   -> Int32
 {
-  let sql = ZedDB.useInsertReturning ? Threads.Schema.insertReturning : Threads.Schema.insert
+  let sql = ZedDB.useInsertReturning ? Thread.Schema.insertReturning : Thread.Schema.insert
   var handle : OpaquePointer? = nil
   guard sqlite3_prepare_v2(db, sql, -1, &handle, nil) == SQLITE_OK,
         let statement = handle else { return sqlite3_errcode(db) }
   defer { sqlite3_finalize(statement) }
-  return record.bind(to: statement, indices: Threads.Schema.insertParameterIndices) {
+  return record.bind(to: statement, indices: Thread.Schema.insertParameterIndices) {
     let rc = sqlite3_step(statement)
     if rc == SQLITE_DONE {
-      var sql = Threads.Schema.select
+      var sql = Thread.Schema.select
       sql.append(#" WHERE ROWID = last_insert_rowid()"#)
       var handle : OpaquePointer? = nil
       guard sqlite3_prepare_v2(db, sql, -1, &handle, nil) == SQLITE_OK,
@@ -91,85 +91,85 @@ public func sqlite3_threads_insert(_ db: OpaquePointer!, _ record: inout Threads
       else if rc != SQLITE_ROW {
         return sqlite3_errcode(db)
       }
-      record = Threads(statement, indices: Threads.Schema.selectColumnIndices)
+      record = Thread(statement, indices: Thread.Schema.selectColumnIndices)
       return SQLITE_OK
     }
     else if rc != SQLITE_ROW {
       return sqlite3_errcode(db)
     }
-    record = Threads(statement, indices: Threads.Schema.selectColumnIndices)
+    record = Thread(statement, indices: Thread.Schema.selectColumnIndices)
     return SQLITE_OK
   }
 }
 
 /**
- * Update a ``Threads`` record in the SQLite database.
+ * Update a ``Thread`` record in the SQLite database.
  * 
  * This operates on a raw SQLite database handle (as returned by
  * `sqlite3_open`).
  * 
  * Example:
  * ```swift
- * let rc = sqlite3_threads_update(db, record)
+ * let rc = sqlite3_thread_update(db, record)
  * assert(rc == SQLITE_OK)
  * ```
  * 
  * - Parameters:
  *   - db: SQLite3 database handle.
- *   - record: The ``Threads`` record to update.
+ *   - record: The ``Thread`` record to update.
  * - Returns: The SQLite error code (of `sqlite3_prepare/step`), e.g. `SQLITE_OK`.
  */
 @inlinable
 @discardableResult
-public func sqlite3_threads_update(_ db: OpaquePointer!, _ record: Threads) -> Int32
+public func sqlite3_thread_update(_ db: OpaquePointer!, _ record: Thread) -> Int32
 {
-  let sql = Threads.Schema.update
+  let sql = Thread.Schema.update
   var handle : OpaquePointer? = nil
   guard sqlite3_prepare_v2(db, sql, -1, &handle, nil) == SQLITE_OK,
         let statement = handle else { return sqlite3_errcode(db) }
   defer { sqlite3_finalize(statement) }
-  return record.bind(to: statement, indices: Threads.Schema.updateParameterIndices) {
+  return record.bind(to: statement, indices: Thread.Schema.updateParameterIndices) {
     let rc = sqlite3_step(statement)
     return rc != SQLITE_DONE && rc != SQLITE_ROW ? sqlite3_errcode(db) : SQLITE_OK
   }
 }
 
 /**
- * Delete a ``Threads`` record in the SQLite database.
+ * Delete a ``Thread`` record in the SQLite database.
  * 
  * This operates on a raw SQLite database handle (as returned by
  * `sqlite3_open`).
  * 
  * Example:
  * ```swift
- * let rc = sqlite3_threads_delete(db, record)
+ * let rc = sqlite3_thread_delete(db, record)
  * assert(rc == SQLITE_OK)
  * ```
  * 
  * - Parameters:
  *   - db: SQLite3 database handle.
- *   - record: The ``Threads`` record to delete.
+ *   - record: The ``Thread`` record to delete.
  * - Returns: The SQLite error code (of `sqlite3_prepare/step`), e.g. `SQLITE_OK`.
  */
 @inlinable
 @discardableResult
-public func sqlite3_threads_delete(_ db: OpaquePointer!, _ record: Threads) -> Int32
+public func sqlite3_thread_delete(_ db: OpaquePointer!, _ record: Thread) -> Int32
 {
-  let sql = Threads.Schema.delete
+  let sql = Thread.Schema.delete
   var handle : OpaquePointer? = nil
   guard sqlite3_prepare_v2(db, sql, -1, &handle, nil) == SQLITE_OK,
         let statement = handle else { return sqlite3_errcode(db) }
   defer { sqlite3_finalize(statement) }
-  return record.bind(to: statement, indices: Threads.Schema.deleteParameterIndices) {
+  return record.bind(to: statement, indices: Thread.Schema.deleteParameterIndices) {
     let rc = sqlite3_step(statement)
     return rc != SQLITE_DONE && rc != SQLITE_ROW ? sqlite3_errcode(db) : SQLITE_OK
   }
 }
 
 /**
- * Fetch ``Threads`` records, filtering using a Swift closure.
+ * Fetch ``Thread`` records, filtering using a Swift closure.
  * 
- * This is fetching full ``Threads`` records from the passed in SQLite database
+ * This is fetching full ``Thread`` records from the passed in SQLite database
  * handle. The filtering is done within SQLite, but using a Swift closure
  * that can be passed in.
  * 
@@ -200,10 +200,10 @@ public func sqlite3_threads_delete(_ db: OpaquePointer!, _ record: Threads) -> I
  * 
  * - Parameters:
  *   - db: The SQLite database handle (as returned by `sqlite3_open`)
- *   - sql: Optional custom SQL yielding ``Threads`` records.
+ *   - sql: Optional custom SQL yielding ``Thread`` records.
  *   - orderBySQL: If set, some SQL that is added as an `ORDER BY` clause (e.g. `name DESC`).
  *   - limit: An optional fetch limit.
- *   - filter: A Swift closure used for filtering, taking the``Threads`` record to be matched.
+ *   - filter: A Swift closure used for filtering, taking the``Thread`` record to be matched.
  * - Returns: The records matching the query, or `nil` if there was an error.
  */
 @inlinable
@@ -212,17 +212,17 @@ public func sqlite3_threads_fetch(
   sql customSQL: String? = nil,
   orderBy orderBySQL: String? = nil,
   limit: Int? = nil,
-  filter: @escaping ( Threads ) -> Bool
-) -> [ Threads ]?
+  filter: @escaping ( Thread ) -> Bool
+) -> [ Thread ]?
 {
   withUnsafePointer(to: filter) { ( closurePtr ) in
-    guard Threads.Schema.registerSwiftMatcher(in: db, flags: SQLITE_UTF8, matcher: closurePtr) == SQLITE_OK else {
+    guard Thread.Schema.registerSwiftMatcher(in: db, flags: SQLITE_UTF8, matcher: closurePtr) == SQLITE_OK else {
       return nil
     }
     defer {
-      Threads.Schema.unregisterSwiftMatcher(in: db, flags: SQLITE_UTF8)
+      Thread.Schema.unregisterSwiftMatcher(in: db, flags: SQLITE_UTF8)
     }
-    var sql = customSQL ?? Threads.Schema.matchSelect
+    var sql = customSQL ?? Thread.Schema.matchSelect
     if let orderBySQL = orderBySQL {
       sql.append(" ORDER BY \(orderBySQL)")
     }
@@ -233,8 +233,8 @@ public func sqlite3_threads_fetch(
     guard sqlite3_prepare_v2(db, sql, -1, &handle, nil) == SQLITE_OK,
           let statement = handle else { return nil }
     defer { sqlite3_finalize(statement) }
-    let indices = customSQL != nil ? Threads.Schema.lookupColumnIndices(in: statement) : Threads.Schema.selectColumnIndices
-    var records = [ Threads ]()
+    let indices = customSQL != nil ? Thread.Schema.lookupColumnIndices(in: statement) : Thread.Schema.selectColumnIndices
+    var records = [ Thread ]()
     while true {
       let rc = sqlite3_step(statement)
       if rc == SQLITE_DONE {
@@ -243,14 +243,14 @@ public func sqlite3_threads_fetch(
       else if rc != SQLITE_ROW {
         return nil
       }
-      records.append(Threads(statement, indices: indices))
+      records.append(Thread(statement, indices: indices))
     }
     return records
   }
 }
 
 /**
- * Fetch ``Threads`` records using the base SQLite API.
+ * Fetch ``Thread`` records using the base SQLite API.
  * 
  * If the function returns `nil`, the error can be found using the usual
  * `sqlite3_errcode` and companions.
@@ -269,7 +269,7 @@ public func sqlite3_threads_fetch(
  * 
  * - Parameters:
  *   - db: The SQLite database handle (as returned by `sqlite3_open`)
- *   - sql: Custom SQL yielding ``Threads`` records.
+ *   - sql: Custom SQL yielding ``Thread`` records.
  *   - orderBySQL: If set, some SQL that is added as an `ORDER BY` clause (e.g. `name DESC`).
  *   - limit: An optional fetch limit.
  * - Returns: The records matching the query, or `nil` if there was an error.
@@ -280,9 +280,9 @@ public func sqlite3_threads_fetch(
   sql customSQL: String? = nil,
   orderBy orderBySQL: String? = nil,
   limit: Int? = nil
-) -> [ Threads ]?
+) -> [ Thread ]?
 {
-  var sql = customSQL ?? Threads.Schema.select
+  var sql = customSQL ?? Thread.Schema.select
   if let orderBySQL = orderBySQL {
     sql.append(" ORDER BY \(orderBySQL)")
   }
@@ -293,8 +293,8 @@ public func sqlite3_threads_fetch(
   guard sqlite3_prepare_v2(db, sql, -1, &handle, nil) == SQLITE_OK,
         let statement = handle else { return nil }
   defer { sqlite3_finalize(statement) }
-  let indices = customSQL != nil ? Threads.Schema.lookupColumnIndices(in: statement) : Threads.Schema.selectColumnIndices
-  var records = [ Threads ]()
+  let indices = customSQL != nil ? Thread.Schema.lookupColumnIndices(in: statement) : Thread.Schema.selectColumnIndices
+  var records = [ Thread ]()
   while true {
     let rc = sqlite3_step(statement)
     if rc == SQLITE_DONE {
@@ -303,7 +303,7 @@ public func sqlite3_threads_fetch(
     else if rc != SQLITE_ROW {
       return nil
     }
-    records.append(Threads(statement, indices: indices))
+    records.append(Thread(statement, indices: indices))
   }
   return records
 }
@@ -317,7 +317,7 @@ public func sqlite3_threads_fetch(
  * 
  * #### Tables
  * 
- * - ``Threads`` (SQL: `threads`)
+ * - ``Thread`` (SQL: `threads`)
  * 
  * > Hint: Use [SQL Views](https://www.sqlite.org/lang_createview.html)
  * >       to create Swift types that represent common queries.
@@ -325,7 +325,7 @@ public func sqlite3_threads_fetch(
  * 
  * ### Examples
  * 
- * Perform record operations on ``Threads`` records:
+ * Perform record operations on ``Thread`` records:
  * ```swift
  * let records = try await db.threads.filter(orderBy: \.id) {
  *   $0.id != nil
@@ -349,7 +349,7 @@ public func sqlite3_threads_fetch(
  * }
  * ```
  * 
- * Perform low level operations on ``Threads`` records:
+ * Perform low level operations on ``Thread`` records:
  * ```swift
  * var db : OpaquePointer?
  * sqlite3_open_v2(path, &db, SQLITE_OPEN_READWRITE, nil)
@@ -373,12 +373,12 @@ public struct ZedDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCreation
    * The `RecordTypes` structure contains a variable for the Swift type
    * associated each table/view of the database. It maps the tables
    * "reference names" (e.g. ``threads``) to the
-   * "record type" of the table (e.g. ``Threads``.self).
+   * "record type" of the table (e.g. ``Thread``.self).
    */
   public struct RecordTypes : Swift.Sendable {
     
-    /// Returns the Threads type information (SQL: `threads`).
-    public let threads = Threads.self
+    /// Returns the Thread type information (SQL: `threads`).
+    public let threads = Thread.self
   }
   
   /// Property based access to the ``RecordTypes-swift.struct``.
@@ -386,7 +386,7 @@ public struct ZedDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCreation
   
   #if swift(>=5.7)
   /// All RecordTypes defined in the database.
-  public static let _allRecordTypes : [ any SQLRecord.Type ] = [ Threads.self ]
+  public static let _allRecordTypes : [ any SQLRecord.Type ] = [ Thread.self ]
   #endif // swift(>=5.7)
   
   /// User version of the database (`PRAGMA user_version`).
@@ -399,7 +399,7 @@ public struct ZedDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCreation
   @inlinable
   public static var creationSQL : String {
     var sql = ""
-    sql.append(Threads.Schema.create)
+    sql.append(Thread.Schema.create)
     return sql
   }
   
@@ -480,7 +480,7 @@ public struct ZedDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCreation
  * 
  * ### Examples
  * 
- * Perform record operations on ``Threads`` records:
+ * Perform record operations on ``Thread`` records:
  * ```swift
  * let records = try await db.threads.filter(orderBy: \.id) {
  *   $0.id != nil
@@ -504,7 +504,7 @@ public struct ZedDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCreation
  * }
  * ```
  * 
- * Perform low level operations on ``Threads`` records:
+ * Perform low level operations on ``Thread`` records:
  * ```swift
  * var db : OpaquePointer?
  * sqlite3_open_v2(path, &db, SQLITE_OPEN_READWRITE, nil)
@@ -532,9 +532,9 @@ public struct ZedDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCreation
  * , parent_id TEXT, worktree_branch TEXT, folder_paths TEXT, folder_paths_order TEXT, created_at TEXT)
  * ```
  */
-public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
+public struct Thread : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
   
-  /// Static SQL type information for the ``Threads`` record.
+  /// Static SQL type information for the ``Thread`` record.
   public static let schema = Schema()
   
   /// Primary key `id` (`TEXT`), optional (default: `nil`).
@@ -568,7 +568,7 @@ public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
   public var createdAt : String?
   
   /**
-   * Initialize a new ``Threads`` record.
+   * Initialize a new ``Thread`` record.
    * 
    * - Parameters:
    *   - id: Primary key `id` (`TEXT`), optional (default: `nil`).
@@ -609,10 +609,10 @@ public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
   }
 }
 
-public extension Threads {
+public extension Thread {
   
   /**
-   * Static type information for the ``Threads`` record (`threads` SQL table).
+   * Static type information for the ``Thread`` record (`threads` SQL table).
    * 
    * This structure captures the static SQL information associated with the
    * record.
@@ -621,20 +621,20 @@ public extension Threads {
   struct Schema : SQLKeyedTableSchema, SQLSwiftMatchableSchema, SQLCreatableSchema {
     
     public typealias PropertyIndices = ( idx_id: Int32, idx_summary: Int32, idx_updatedAt: Int32, idx_dataType: Int32, idx_data: Int32, idx_parentId: Int32, idx_worktreeBranch: Int32, idx_folderPaths: Int32, idx_folderPathsOrder: Int32, idx_createdAt: Int32 )
-    public typealias RecordType = Threads
-    public typealias MatchClosureType = ( Threads ) -> Bool
+    public typealias RecordType = Thread
+    public typealias MatchClosureType = ( Thread ) -> Bool
     
-    /// The SQL table name associated with the ``Threads`` record.
+    /// The SQL table name associated with the ``Thread`` record.
     public static let externalName = "threads"
     
     /// The number of columns the `threads` table has.
     public static let columnCount : Int32 = 10
     
-    /// Information on the records primary key (``Threads/id``).
-    public static let primaryKeyColumn = MappedColumn<Threads, String?>(
+    /// Information on the records primary key (``Thread/id``).
+    public static let primaryKeyColumn = MappedColumn<Thread, String?>(
       externalName: "id",
       defaultValue: nil,
-      keyPath: \Threads.id
+      keyPath: \Thread.id
     )
     
     /// The SQL used to create the `threads` table.
@@ -739,7 +739,7 @@ public extension Threads {
     }
     
     /**
-     * Register the Swift matcher function for the ``Threads`` record.
+     * Register the Swift matcher function for the ``Thread`` record.
      * 
      * SQLite Swift matcher functions are used to process `filter` queries
      * and low-level matching w/o the Lighter library.
@@ -766,8 +766,8 @@ public extension Threads {
       {
         if let closureRawPtr = sqlite3_user_data(context) {
           let closurePtr = closureRawPtr.bindMemory(to: MatchClosureType.self, capacity: 1)
-          let indices = Threads.Schema.selectColumnIndices
-          let record = Threads(
+          let indices = Thread.Schema.selectColumnIndices
+          let record = Thread(
             id: (indices.idx_id >= 0) && (indices.idx_id < argc) ? (sqlite3_value_text(argv[Int(indices.idx_id)]).flatMap(String.init(cString:))) : RecordType.schema.id.defaultValue,
             summary: ((indices.idx_summary >= 0) && (indices.idx_summary < argc) ? (sqlite3_value_text(argv[Int(indices.idx_summary)]).flatMap(String.init(cString:))) : nil) ?? RecordType.schema.summary.defaultValue,
             updatedAt: ((indices.idx_updatedAt >= 0) && (indices.idx_updatedAt < argc) ? (sqlite3_value_text(argv[Int(indices.idx_updatedAt)]).flatMap(String.init(cString:))) : nil) ?? RecordType.schema.updatedAt.defaultValue,
@@ -788,7 +788,7 @@ public extension Threads {
       return sqlite3_create_function(
         unsafeDatabaseHandle,
         "threads_swift_match",
-        Threads.Schema.columnCount,
+        Thread.Schema.columnCount,
         flags,
         UnsafeMutableRawPointer(mutating: matcher),
         dispatch,
@@ -798,7 +798,7 @@ public extension Threads {
     }
     
     /**
-     * Unregister the Swift matcher function for the ``Threads`` record.
+     * Unregister the Swift matcher function for the ``Thread`` record.
      * 
      * SQLite Swift matcher functions are used to process `filter` queries
      * and low-level matching w/o the Lighter library.
@@ -818,7 +818,7 @@ public extension Threads {
       sqlite3_create_function(
         unsafeDatabaseHandle,
         "threads_swift_match",
-        Threads.Schema.columnCount,
+        Thread.Schema.columnCount,
         flags,
         nil,
         nil,
@@ -827,74 +827,74 @@ public extension Threads {
       )
     }
     
-    /// Type information for property ``Threads/id`` (`id` column).
-    public let id = MappedColumn<Threads, String?>(
+    /// Type information for property ``Thread/id`` (`id` column).
+    public let id = MappedColumn<Thread, String?>(
       externalName: "id",
       defaultValue: nil,
-      keyPath: \Threads.id
+      keyPath: \Thread.id
     )
     
-    /// Type information for property ``Threads/summary`` (`summary` column).
-    public let summary = MappedColumn<Threads, String>(
+    /// Type information for property ``Thread/summary`` (`summary` column).
+    public let summary = MappedColumn<Thread, String>(
       externalName: "summary",
       defaultValue: "",
-      keyPath: \Threads.summary
+      keyPath: \Thread.summary
     )
     
-    /// Type information for property ``Threads/updatedAt`` (`updated_at` column).
-    public let updatedAt = MappedColumn<Threads, String>(
+    /// Type information for property ``Thread/updatedAt`` (`updated_at` column).
+    public let updatedAt = MappedColumn<Thread, String>(
       externalName: "updated_at",
       defaultValue: "",
-      keyPath: \Threads.updatedAt
+      keyPath: \Thread.updatedAt
     )
     
-    /// Type information for property ``Threads/dataType`` (`data_type` column).
-    public let dataType = MappedColumn<Threads, String>(
+    /// Type information for property ``Thread/dataType`` (`data_type` column).
+    public let dataType = MappedColumn<Thread, String>(
       externalName: "data_type",
       defaultValue: "",
-      keyPath: \Threads.dataType
+      keyPath: \Thread.dataType
     )
     
-    /// Type information for property ``Threads/data`` (`data` column).
-    public let data = MappedColumn<Threads, [ UInt8 ]>(
+    /// Type information for property ``Thread/data`` (`data` column).
+    public let data = MappedColumn<Thread, [ UInt8 ]>(
       externalName: "data",
       defaultValue: [],
-      keyPath: \Threads.data
+      keyPath: \Thread.data
     )
     
-    /// Type information for property ``Threads/parentId`` (`parent_id` column).
-    public let parentId = MappedColumn<Threads, String?>(
+    /// Type information for property ``Thread/parentId`` (`parent_id` column).
+    public let parentId = MappedColumn<Thread, String?>(
       externalName: "parent_id",
       defaultValue: nil,
-      keyPath: \Threads.parentId
+      keyPath: \Thread.parentId
     )
     
-    /// Type information for property ``Threads/worktreeBranch`` (`worktree_branch` column).
-    public let worktreeBranch = MappedColumn<Threads, String?>(
+    /// Type information for property ``Thread/worktreeBranch`` (`worktree_branch` column).
+    public let worktreeBranch = MappedColumn<Thread, String?>(
       externalName: "worktree_branch",
       defaultValue: nil,
-      keyPath: \Threads.worktreeBranch
+      keyPath: \Thread.worktreeBranch
     )
     
-    /// Type information for property ``Threads/folderPaths`` (`folder_paths` column).
-    public let folderPaths = MappedColumn<Threads, String?>(
+    /// Type information for property ``Thread/folderPaths`` (`folder_paths` column).
+    public let folderPaths = MappedColumn<Thread, String?>(
       externalName: "folder_paths",
       defaultValue: nil,
-      keyPath: \Threads.folderPaths
+      keyPath: \Thread.folderPaths
     )
     
-    /// Type information for property ``Threads/folderPathsOrder`` (`folder_paths_order` column).
-    public let folderPathsOrder = MappedColumn<Threads, String?>(
+    /// Type information for property ``Thread/folderPathsOrder`` (`folder_paths_order` column).
+    public let folderPathsOrder = MappedColumn<Thread, String?>(
       externalName: "folder_paths_order",
       defaultValue: nil,
-      keyPath: \Threads.folderPathsOrder
+      keyPath: \Thread.folderPathsOrder
     )
     
-    /// Type information for property ``Threads/createdAt`` (`created_at` column).
-    public let createdAt = MappedColumn<Threads, String?>(
+    /// Type information for property ``Thread/createdAt`` (`created_at` column).
+    public let createdAt = MappedColumn<Thread, String?>(
       externalName: "created_at",
       defaultValue: nil,
-      keyPath: \Threads.createdAt
+      keyPath: \Thread.createdAt
     )
     
     #if swift(>=5.7)
@@ -907,7 +907,7 @@ public extension Threads {
   }
   
   /**
-   * Initialize a ``Threads`` record from a SQLite statement handle.
+   * Initialize a ``Thread`` record from a SQLite statement handle.
    * 
    * This initializer allows easy setup of a record structure from an
    * otherwise arbitrarily constructed SQLite prepared statement.
@@ -928,7 +928,7 @@ public extension Threads {
    * var statement : OpaquePointer?
    * sqlite3_prepare_v2(dbHandle, "SELECT * FROM threads", -1, &statement, nil)
    * while sqlite3_step(statement) == SQLITE_ROW {
-   *   let record = Threads(statement)
+   *   let record = Thread(statement)
    *   print("Fetched:", record)
    * }
    * sqlite3_finalize(statement)
@@ -958,7 +958,7 @@ public extension Threads {
   }
   
   /**
-   * Bind all ``Threads`` properties to a prepared statement and call a closure.
+   * Bind all ``Thread`` properties to a prepared statement and call a closure.
    * 
    * *Important*: The bindings are only valid within the closure being executed!
    * 
@@ -971,7 +971,7 @@ public extension Threads {
    *   -1, &statement, nil
    * )
    * 
-   * let record = Threads(id: "Hello", summary: "World", updatedAt: "Duck", dataType: "Donald", data: ..., parentId: "Mickey")
+   * let record = Thread(id: "Hello", summary: "World", updatedAt: "Duck", dataType: "Donald", data: ..., parentId: "Mickey")
    * let ok = record.bind(to: statement, indices: ( 10, 1, 2, 3, 4, 5, 6, 7, 8, 9 )) {
    *   sqlite3_step(statement) == SQLITE_DONE
    * }

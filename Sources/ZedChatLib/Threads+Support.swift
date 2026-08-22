@@ -1,7 +1,7 @@
 import Foundation
 import libzstd
 
-extension Threads: CustomDebugStringConvertible, CustomStringConvertible {
+extension Thread: CustomDebugStringConvertible, CustomStringConvertible {
 	public var description: String {
 		"""
 		RawThread:
@@ -20,7 +20,7 @@ extension Threads: CustomDebugStringConvertible, CustomStringConvertible {
 	}
 }
 
-extension Threads {
+extension Thread {
 	public var uuid: UUID? { id.flatMap(UUID.init(uuidString:)) }
 	public var dataAsData: Data { Data(data) }
 
