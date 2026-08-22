@@ -1,7 +1,9 @@
 import Foundation
 import libzstd
 
-extension Thread: CustomDebugStringConvertible, CustomStringConvertible {
+public typealias MetaThread = Thread
+
+extension MetaThread: CustomDebugStringConvertible, CustomStringConvertible {
 	public var description: String {
 		"""
 		RawThread:
@@ -20,7 +22,7 @@ extension Thread: CustomDebugStringConvertible, CustomStringConvertible {
 	}
 }
 
-extension Thread {
+extension MetaThread {
 	public var uuid: UUID? { id.flatMap(UUID.init(uuidString:)) }
 	public var dataAsData: Data { Data(data) }
 
@@ -28,7 +30,7 @@ extension Thread {
 		public let id: String?
 		public let summary: String
 		public let lastUpdate: Date
-		public let thread: ZedThread?
+		public let thread: ThreadContent?
 	}
 
 	public struct ContentResult: Codable, Sendable {
@@ -53,7 +55,7 @@ extension Thread {
 		.init(
 			id: id,
 			summary: summary,
-			lastUpdate: Self.dateFormatter.date(from: updatedAt) ?? .now,
+			lastUpdate: MetaThread.dateFormatter.date(from: updatedAt) ?? .now,
 			thread: nil)
 	}
 
@@ -64,9 +66,9 @@ extension Thread {
 		}
 
 		// Parse JSON into ZedThread structure
-		let parsedThread: ZedThread?
+		let parsedThread: ThreadContent?
 		do {
-			parsedThread = try JSONDecoder().decode(ZedThread.self, from: decompressed)
+			parsedThread = try JSONDecoder().decode(ThreadContent.self, from: decompressed)
 		} catch {
 			// If JSON parsing fails, return nil
 			print("Error: \(error)")
@@ -76,7 +78,7 @@ extension Thread {
 		return .init(
 			id: id,
 			summary: summary,
-			lastUpdate: Self.dateFormatter.date(from: updatedAt) ?? .now,
+			lastUpdate: MetaThread.dateFormatter.date(from: updatedAt) ?? .now,
 			thread: parsedThread)
 	}
 
@@ -86,9 +88,9 @@ extension Thread {
 		}
 
 		// Parse JSON into ZedThread structure
-		var parsedThread: ZedThread?
+		var parsedThread: ThreadContent?
 		do {
-			parsedThread = try JSONDecoder().decode(ZedThread.self, from: decompressed)
+			parsedThread = try JSONDecoder().decode(ThreadContent.self, from: decompressed)
 		} catch {
 			// If JSON parsing fails, return nil
 			print("Error: \(error)")
@@ -103,7 +105,7 @@ extension Thread {
 			parsedThread = parsedThread?.clampingToMessageRange(messageRange)
 		}
 
-		let date = await Self.dateFormatter.date(from: updatedAt) ?? .now
+		let date = await MetaThread.dateFormatter.date(from: updatedAt) ?? .now
 
 		return .init(
 			id: id,

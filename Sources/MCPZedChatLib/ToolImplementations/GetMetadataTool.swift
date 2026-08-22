@@ -77,7 +77,7 @@ struct GetMetadataTool: ToolImplementation {
 	}
 
 	/// Generate thread-level metadata
-	private func threadMetadata(for thread: ZedThread, threadSummary: String) throws -> CallTool.Result {
+	private func threadMetadata(for thread: ThreadContent, threadSummary: String) throws -> CallTool.Result {
 		// Track message indices by type
 		var userMessageIndices: [Int] = []
 		var agentMessageIndices: [Int] = []
@@ -161,7 +161,7 @@ struct GetMetadataTool: ToolImplementation {
 	}
 
 	/// Generate message-level metadata
-	private func messageMetadata(for index: Int, in thread: ZedThread, threadSummary: String) throws(ContentError) -> CallTool.Result {
+	private func messageMetadata(for index: Int, in thread: ThreadContent, threadSummary: String) throws(ContentError) -> CallTool.Result {
 		// Validate message index
 		guard index < thread.messages.count else {
 			throw ContentError.contentError(message: "messageIndex \(index) out of range (thread has \(thread.messages.count) messages)")
@@ -238,7 +238,7 @@ struct GetMetadataTool: ToolImplementation {
 			let length: Int?
 			let toolName: String?
 
-			init(from content: ZedThread.Message.Content) {
+			init(from content: ThreadContent.Message.Content) {
 				switch content {
 				case .text(let text):
 					self.type = "text"

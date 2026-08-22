@@ -101,7 +101,7 @@ public struct ZedThreadsInterface: Sendable {
 		let matches = await allThreads.asyncConcurrentMap { thread in
 			let consumable = await self.getCachedThreadContent(for: thread)
 
-			let results: [(index: Int, message: ZedThread.Message)]
+			let results: [(index: Int, message: ThreadContent.Message)]
 			if onlyFirstMatchPerThread {
 				results = [consumable?.thread?.nextMessage(containing: query, caseInsensitive: caseInsensitive)].compactMap(\.self)
 			} else {

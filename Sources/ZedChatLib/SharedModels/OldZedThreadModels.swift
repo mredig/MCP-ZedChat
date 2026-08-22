@@ -126,8 +126,8 @@ extension Legacy.ZedThreadMessage_0_2_0 {
 
 extension Legacy.ZedThreadMessage_0_2_0 {
 	/// Convert 0.2.0 message format to 0.3.0 format
-	func toVersion0_3_0() -> ZedThread.Message {
-		var content: [ZedThread.Message.Content] = []
+	func toVersion0_3_0() -> ThreadContent.Message {
+		var content: [ThreadContent.Message.Content] = []
 		
 		// Convert segments to content
 		for segment in segments {
@@ -138,7 +138,7 @@ extension Legacy.ZedThreadMessage_0_2_0 {
 		
 		// Add tool uses as content
 		for toolUse in toolUses {
-			let modernToolUse = ZedThread.Message.Content.ToolUse(
+			let modernToolUse = ThreadContent.Message.Content.ToolUse(
 				id: toolUse.id,
 				name: toolUse.name,
 				rawInput: nil,
@@ -150,16 +150,16 @@ extension Legacy.ZedThreadMessage_0_2_0 {
 		// Create appropriate message type based on role
 		switch role {
 		case .user:
-			return .user(ZedThread.Message.UserMessage(
+			return .user(ThreadContent.Message.UserMessage(
 				id: UUID().uuidString,
 				content: content
 			))
 		case .assistant:
 			return .agent(
-				ZedThread.Message.AgentMessage(
+				ThreadContent.Message.AgentMessage(
 					content: content,
 					toolResults: toolResults.reduce(into: [:], {
-						$0[$1.toolUseId] = ZedThread.ToolResult(
+						$0[$1.toolUseId] = ThreadContent.ToolResult(
 							content: .text($1.content.text ?? "No content"),
 							toolUseID: $1.toolUseId,
 							toolName: "legacy",

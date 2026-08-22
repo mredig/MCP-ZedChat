@@ -1,0 +1,125 @@
+extension ThreadContent {
+	/// A message in a Zed thread - can be from User or Agent
+	public enum Message: Codable, Sendable {
+		case user(UserMessage)
+		case agent(AgentMessage)
+		case noop
+
+		public struct UserMessage: Codable, Sendable {
+			public let id: String
+			public let content: [Content]
+
+			public var wrappedContent: [Content.Wrapper] {
+				content.map { .init(context: "User", content: $0) }
+			}
+		}
+
+		public struct AgentMessage: Codable, Sendable {
+			public let content: [Content]
+			public let toolResults: [String: ToolResult]?
+
+			public var wrappedContent: [Content.Wrapper] {
+				var accumulator: [Content.Wrapper] = content.map {
+					.init(context: "Agent", content: $0)
+				}
+
+				guard let toolResults else {
+					return accumulator
+				}
+
+				for (_, tool) in toolResults {
+					accumulator.append(.init(context: "\nToolID", content: .text(tool.toolUseID)))
+					guard let content = tool.content else {
+						let errorString = {
+							guard let isError = tool.isError else {
+								return "unknown"
+							}
+							return "\(isError)"
+						}()
+						accumulator.append(.init(context: "\nToolError", content: .text(errorString)))
+						continue
+					}
+					if let toolName = tool.toolName {
+						accumulator.append(.init(context: "\nToolName", content: .text(toolName)))
+					}
+					switch content {
+					case .text(let string):
+						accumulator.append(.init(context: "\nToolContent", content: .text(string)))
+					case .image:
+						accumulator.append(.init(context: "\nToolContent", content: .other("Generated Image - Unable to render in text")))
+					}
+				}
+				return accumulator
+			}
+
+			enum CodingKeys: String, CodingKey {
+				case content
+				case toolResults = "tool_results"
+			}
+		}
+
+		// Custom decoding to handle the User/Agent wrapper
+		public init(from decoder: Decoder) throws {
+			let container = try decoder.singleValueContainer()
+			let dict: [String: AnyCodable]
+			do {
+				dict = try container.decode([String: AnyCodable].self)
+			} catch DecodingError.typeMismatch(let expectedType, _) where expectedType == [String: Any].self {
+				_ = try container.decode(String.self)
+
+				self = .noop
+				return
+			}
+
+			if let userData = dict["User"] {
+				let userMsg = try userData.decode(UserMessage.self)
+				self = .user(userMsg)
+			} else if let agentData = dict["Agent"] {
+				let agentMsg = try agentData.decode(AgentMessage.self)
+				self = .agent(agentMsg)
+			} else {
+				let errorMessage = "Message must contain either 'User' or 'Agent' key"
+				throw DecodingError.dataCorruptedError(
+					in: container,
+					debugDescription: errorMessage)
+			}
+		}
+
+		public func encode(to encoder: Encoder) throws {
+			var container = encoder.singleValueContainer()
+			switch self {
+			case .user(let userMsg):
+				try container.encode(["User": userMsg])
+			case .agent(let agentMsg):
+				try container.encode(["Agent": agentMsg])
+			case .noop: break
+			}
+		}
+		
+		/// Extract all text content from the message (for searching/display)
+		public var textContent: String {
+			let content: [Content.Wrapper]
+			switch self {
+			case .user(let userMsg):
+				content = userMsg.wrappedContent
+			case .agent(let agentMsg):
+				content = agentMsg.wrappedContent
+			case .noop:
+				return ""
+			}
+			
+			return content.compactMap { item -> String? in
+				switch item.content {
+				case .text(let text):
+					return "\(item.context): \(text)"
+				case .thinking(let thinking):
+					return "\(item.context): \(thinking.text)"
+				case .toolUse(let toolUse):
+					return "\(item.context): \(toolUse.description)"
+				case .mention, .other:
+					return nil
+				}
+			}.joined(separator: " ")
+		}
+	}
+}
