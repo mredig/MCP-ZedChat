@@ -1,4 +1,4 @@
-// Autocreated by sqlite2swift at 2025-11-13T07:28:11Z
+// Autocreated by sqlite2swift at 2026-08-22T22:07:37Z
 
 import SQLite3
 import Foundation
@@ -529,7 +529,7 @@ public struct ThreadsDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCrea
  *     updated_at TEXT NOT NULL,
  *     data_type TEXT NOT NULL,
  *     data BLOB NOT NULL
- * )
+ * , parent_id TEXT, worktree_branch TEXT, folder_paths TEXT, folder_paths_order TEXT, created_at TEXT)
  * ```
  */
 public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
@@ -539,6 +539,7 @@ public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
   
   /// Primary key `id` (`TEXT`), optional (default: `nil`).
   public var id : String?
+  
   /// Column `summary` (`TEXT`), required.
   public var summary : String
   
@@ -550,6 +551,22 @@ public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
   
   /// Column `data` (`BLOB`), required.
   public var data : [ UInt8 ]
+  
+  /// Column `parent_id` (`TEXT`), optional (default: `nil`).
+  public var parentId : String?
+  
+  /// Column `worktree_branch` (`TEXT`), optional (default: `nil`).
+  public var worktreeBranch : String?
+  
+  /// Column `folder_paths` (`TEXT`), optional (default: `nil`).
+  public var folderPaths : String?
+  
+  /// Column `folder_paths_order` (`TEXT`), optional (default: `nil`).
+  public var folderPathsOrder : String?
+  
+  /// Column `created_at` (`TEXT`), optional (default: `nil`).
+  public var createdAt : String?
+  
   /**
    * Initialize a new ``Threads`` record.
    * 
@@ -559,6 +576,11 @@ public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
    *   - updatedAt: Column `updated_at` (`TEXT`), required.
    *   - dataType: Column `data_type` (`TEXT`), required.
    *   - data: Column `data` (`BLOB`), required.
+   *   - parentId: Column `parent_id` (`TEXT`), optional (default: `nil`).
+   *   - worktreeBranch: Column `worktree_branch` (`TEXT`), optional (default: `nil`).
+   *   - folderPaths: Column `folder_paths` (`TEXT`), optional (default: `nil`).
+   *   - folderPathsOrder: Column `folder_paths_order` (`TEXT`), optional (default: `nil`).
+   *   - createdAt: Column `created_at` (`TEXT`), optional (default: `nil`).
    */
   @inlinable
   public init(
@@ -566,7 +588,12 @@ public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
     summary: String,
     updatedAt: String,
     dataType: String,
-    data: [ UInt8 ]
+    data: [ UInt8 ],
+    parentId: String? = nil,
+    worktreeBranch: String? = nil,
+    folderPaths: String? = nil,
+    folderPathsOrder: String? = nil,
+    createdAt: String? = nil
   )
   {
     self.id = id
@@ -574,6 +601,11 @@ public struct Threads : Identifiable, SQLKeyedTableRecord, Codable, Sendable {
     self.updatedAt = updatedAt
     self.dataType = dataType
     self.data = data
+    self.parentId = parentId
+    self.worktreeBranch = worktreeBranch
+    self.folderPaths = folderPaths
+    self.folderPathsOrder = folderPathsOrder
+    self.createdAt = createdAt
   }
 }
 
@@ -588,7 +620,7 @@ public extension Threads {
    */
   struct Schema : SQLKeyedTableSchema, SQLSwiftMatchableSchema, SQLCreatableSchema {
     
-    public typealias PropertyIndices = ( idx_id: Int32, idx_summary: Int32, idx_updatedAt: Int32, idx_dataType: Int32, idx_data: Int32 )
+    public typealias PropertyIndices = ( idx_id: Int32, idx_summary: Int32, idx_updatedAt: Int32, idx_dataType: Int32, idx_data: Int32, idx_parentId: Int32, idx_worktreeBranch: Int32, idx_folderPaths: Int32, idx_folderPathsOrder: Int32, idx_createdAt: Int32 )
     public typealias RecordType = Threads
     public typealias MatchClosureType = ( Threads ) -> Bool
     
@@ -596,7 +628,7 @@ public extension Threads {
     public static let externalName = "threads"
     
     /// The number of columns the `threads` table has.
-    public static let columnCount : Int32 = 5
+    public static let columnCount : Int32 = 10
     
     /// Information on the records primary key (``Threads/id``).
     public static let primaryKeyColumn = MappedColumn<Threads, String?>(
@@ -614,41 +646,41 @@ public extension Threads {
           updated_at TEXT NOT NULL,
           data_type TEXT NOT NULL,
           data BLOB NOT NULL
-      );
+      , parent_id TEXT, worktree_branch TEXT, folder_paths TEXT, folder_paths_order TEXT, created_at TEXT);
       """#
     
     /// SQL to `SELECT` all columns of the `threads` table.
-    public static let select = #"SELECT "id", "summary", "updated_at", "data_type", "data" FROM "threads""#
+    public static let select = #"SELECT "id", "summary", "updated_at", "data_type", "data", "parent_id", "worktree_branch", "folder_paths", "folder_paths_order", "created_at" FROM "threads""#
     
     /// SQL fragment representing all columns.
-    public static let selectColumns = #""id", "summary", "updated_at", "data_type", "data""#
+    public static let selectColumns = #""id", "summary", "updated_at", "data_type", "data", "parent_id", "worktree_branch", "folder_paths", "folder_paths_order", "created_at""#
     
     /// Index positions of the properties in ``selectColumns``.
-    public static let selectColumnIndices : PropertyIndices = ( 0, 1, 2, 3, 4 )
+    public static let selectColumnIndices : PropertyIndices = ( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 )
     
     /// SQL to `SELECT` all columns of the `threads` table using a Swift filter.
-    public static let matchSelect = #"SELECT "id", "summary", "updated_at", "data_type", "data" FROM "threads" WHERE threads_swift_match("id", "summary", "updated_at", "data_type", "data") != 0"#
+    public static let matchSelect = #"SELECT "id", "summary", "updated_at", "data_type", "data", "parent_id", "worktree_branch", "folder_paths", "folder_paths_order", "created_at" FROM "threads" WHERE threads_swift_match("id", "summary", "updated_at", "data_type", "data", "parent_id", "worktree_branch", "folder_paths", "folder_paths_order", "created_at") != 0"#
     
     /// SQL to `UPDATE` all columns of the `threads` table.
-    public static let update = #"UPDATE "threads" SET "summary" = ?, "updated_at" = ?, "data_type" = ?, "data" = ? WHERE "id" = ?"#
+    public static let update = #"UPDATE "threads" SET "summary" = ?, "updated_at" = ?, "data_type" = ?, "data" = ?, "parent_id" = ?, "worktree_branch" = ?, "folder_paths" = ?, "folder_paths_order" = ?, "created_at" = ? WHERE "id" = ?"#
     
     /// Property parameter indicies in the ``update`` SQL
-    public static let updateParameterIndices : PropertyIndices = ( 5, 1, 2, 3, 4 )
+    public static let updateParameterIndices : PropertyIndices = ( 10, 1, 2, 3, 4, 5, 6, 7, 8, 9 )
     
     /// SQL to `INSERT` a record into the `threads` table.
-    public static let insert = #"INSERT INTO "threads" ( "id", "summary", "updated_at", "data_type", "data" ) VALUES ( ?, ?, ?, ?, ? )"#
+    public static let insert = #"INSERT INTO "threads" ( "id", "summary", "updated_at", "data_type", "data", "parent_id", "worktree_branch", "folder_paths", "folder_paths_order", "created_at" ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"#
     
     /// SQL to `INSERT` a record into the `threads` table.
-    public static let insertReturning = #"INSERT INTO "threads" ( "id", "summary", "updated_at", "data_type", "data" ) VALUES ( ?, ?, ?, ?, ? ) RETURNING "id", "summary", "updated_at", "data_type", "data""#
+    public static let insertReturning = #"INSERT INTO "threads" ( "id", "summary", "updated_at", "data_type", "data", "parent_id", "worktree_branch", "folder_paths", "folder_paths_order", "created_at" ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) RETURNING "id", "summary", "updated_at", "data_type", "data", "parent_id", "worktree_branch", "folder_paths", "folder_paths_order", "created_at""#
     
     /// Property parameter indicies in the ``insert`` SQL
-    public static let insertParameterIndices : PropertyIndices = ( 1, 2, 3, 4, 5 )
+    public static let insertParameterIndices : PropertyIndices = ( 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 )
     
     /// SQL to `DELETE` a record from the `threads` table.
     public static let delete = #"DELETE FROM "threads" WHERE "id" = ?"#
     
     /// Property parameter indicies in the ``delete`` SQL
-    public static let deleteParameterIndices : PropertyIndices = ( 1, -1, -1, -1, -1 )
+    public static let deleteParameterIndices : PropertyIndices = ( 1, -1, -1, -1, -1, -1, -1, -1, -1, -1 )
     
     /**
      * Lookup property indices by column name in a statement handle.
@@ -669,7 +701,7 @@ public extension Threads {
     public static func lookupColumnIndices(`in` statement: OpaquePointer!)
       -> PropertyIndices
     {
-      var indices : PropertyIndices = ( -1, -1, -1, -1, -1 )
+      var indices : PropertyIndices = ( -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 )
       for i in 0..<sqlite3_column_count(statement) {
         let col = sqlite3_column_name(statement, i)
         if strcmp(col!, "id") == 0 {
@@ -686,6 +718,21 @@ public extension Threads {
         }
         else if strcmp(col!, "data") == 0 {
           indices.idx_data = i
+        }
+        else if strcmp(col!, "parent_id") == 0 {
+          indices.idx_parentId = i
+        }
+        else if strcmp(col!, "worktree_branch") == 0 {
+          indices.idx_worktreeBranch = i
+        }
+        else if strcmp(col!, "folder_paths") == 0 {
+          indices.idx_folderPaths = i
+        }
+        else if strcmp(col!, "folder_paths_order") == 0 {
+          indices.idx_folderPathsOrder = i
+        }
+        else if strcmp(col!, "created_at") == 0 {
+          indices.idx_createdAt = i
         }
       }
       return indices
@@ -725,7 +772,12 @@ public extension Threads {
             summary: ((indices.idx_summary >= 0) && (indices.idx_summary < argc) ? (sqlite3_value_text(argv[Int(indices.idx_summary)]).flatMap(String.init(cString:))) : nil) ?? RecordType.schema.summary.defaultValue,
             updatedAt: ((indices.idx_updatedAt >= 0) && (indices.idx_updatedAt < argc) ? (sqlite3_value_text(argv[Int(indices.idx_updatedAt)]).flatMap(String.init(cString:))) : nil) ?? RecordType.schema.updatedAt.defaultValue,
             dataType: ((indices.idx_dataType >= 0) && (indices.idx_dataType < argc) ? (sqlite3_value_text(argv[Int(indices.idx_dataType)]).flatMap(String.init(cString:))) : nil) ?? RecordType.schema.dataType.defaultValue,
-            data: ((indices.idx_data >= 0) && (indices.idx_data < argc) ? (sqlite3_value_blob(argv[Int(indices.idx_data)]).flatMap({ [ UInt8 ](UnsafeRawBufferPointer(start: $0, count: Int(sqlite3_value_bytes(argv[Int(indices.idx_data)])))) })) : nil) ?? RecordType.schema.data.defaultValue
+            data: ((indices.idx_data >= 0) && (indices.idx_data < argc) ? (sqlite3_value_blob(argv[Int(indices.idx_data)]).flatMap({ [ UInt8 ](UnsafeRawBufferPointer(start: $0, count: Int(sqlite3_value_bytes(argv[Int(indices.idx_data)])))) })) : nil) ?? RecordType.schema.data.defaultValue,
+            parentId: (indices.idx_parentId >= 0) && (indices.idx_parentId < argc) ? (sqlite3_value_text(argv[Int(indices.idx_parentId)]).flatMap(String.init(cString:))) : RecordType.schema.parentId.defaultValue,
+            worktreeBranch: (indices.idx_worktreeBranch >= 0) && (indices.idx_worktreeBranch < argc) ? (sqlite3_value_text(argv[Int(indices.idx_worktreeBranch)]).flatMap(String.init(cString:))) : RecordType.schema.worktreeBranch.defaultValue,
+            folderPaths: (indices.idx_folderPaths >= 0) && (indices.idx_folderPaths < argc) ? (sqlite3_value_text(argv[Int(indices.idx_folderPaths)]).flatMap(String.init(cString:))) : RecordType.schema.folderPaths.defaultValue,
+            folderPathsOrder: (indices.idx_folderPathsOrder >= 0) && (indices.idx_folderPathsOrder < argc) ? (sqlite3_value_text(argv[Int(indices.idx_folderPathsOrder)]).flatMap(String.init(cString:))) : RecordType.schema.folderPathsOrder.defaultValue,
+            createdAt: (indices.idx_createdAt >= 0) && (indices.idx_createdAt < argc) ? (sqlite3_value_text(argv[Int(indices.idx_createdAt)]).flatMap(String.init(cString:))) : RecordType.schema.createdAt.defaultValue
           )
           sqlite3_result_int(context, closurePtr.pointee(record) ? 1 : 0)
         }
@@ -810,8 +862,43 @@ public extension Threads {
       keyPath: \Threads.data
     )
     
+    /// Type information for property ``Threads/parentId`` (`parent_id` column).
+    public let parentId = MappedColumn<Threads, String?>(
+      externalName: "parent_id",
+      defaultValue: nil,
+      keyPath: \Threads.parentId
+    )
+    
+    /// Type information for property ``Threads/worktreeBranch`` (`worktree_branch` column).
+    public let worktreeBranch = MappedColumn<Threads, String?>(
+      externalName: "worktree_branch",
+      defaultValue: nil,
+      keyPath: \Threads.worktreeBranch
+    )
+    
+    /// Type information for property ``Threads/folderPaths`` (`folder_paths` column).
+    public let folderPaths = MappedColumn<Threads, String?>(
+      externalName: "folder_paths",
+      defaultValue: nil,
+      keyPath: \Threads.folderPaths
+    )
+    
+    /// Type information for property ``Threads/folderPathsOrder`` (`folder_paths_order` column).
+    public let folderPathsOrder = MappedColumn<Threads, String?>(
+      externalName: "folder_paths_order",
+      defaultValue: nil,
+      keyPath: \Threads.folderPathsOrder
+    )
+    
+    /// Type information for property ``Threads/createdAt`` (`created_at` column).
+    public let createdAt = MappedColumn<Threads, String?>(
+      externalName: "created_at",
+      defaultValue: nil,
+      keyPath: \Threads.createdAt
+    )
+    
     #if swift(>=5.7)
-    public var _allColumns : [ any SQLColumn ] { [ id, summary, updatedAt, dataType, data ] }
+    public var _allColumns : [ any SQLColumn ] { [ id, summary, updatedAt, dataType, data, parentId, worktreeBranch, folderPaths, folderPathsOrder, createdAt ] }
     #endif // swift(>=5.7)
     
     public init()
@@ -861,7 +948,12 @@ public extension Threads {
       summary: ((indices.idx_summary >= 0) && (indices.idx_summary < argc) ? (sqlite3_column_text(statement, indices.idx_summary).flatMap(String.init(cString:))) : nil) ?? Self.schema.summary.defaultValue,
       updatedAt: ((indices.idx_updatedAt >= 0) && (indices.idx_updatedAt < argc) ? (sqlite3_column_text(statement, indices.idx_updatedAt).flatMap(String.init(cString:))) : nil) ?? Self.schema.updatedAt.defaultValue,
       dataType: ((indices.idx_dataType >= 0) && (indices.idx_dataType < argc) ? (sqlite3_column_text(statement, indices.idx_dataType).flatMap(String.init(cString:))) : nil) ?? Self.schema.dataType.defaultValue,
-      data: ((indices.idx_data >= 0) && (indices.idx_data < argc) ? (sqlite3_column_blob(statement, indices.idx_data).flatMap({ [ UInt8 ](UnsafeRawBufferPointer(start: $0, count: Int(sqlite3_column_bytes(statement, indices.idx_data)))) })) : nil) ?? Self.schema.data.defaultValue
+      data: ((indices.idx_data >= 0) && (indices.idx_data < argc) ? (sqlite3_column_blob(statement, indices.idx_data).flatMap({ [ UInt8 ](UnsafeRawBufferPointer(start: $0, count: Int(sqlite3_column_bytes(statement, indices.idx_data)))) })) : nil) ?? Self.schema.data.defaultValue,
+      parentId: (indices.idx_parentId >= 0) && (indices.idx_parentId < argc) ? (sqlite3_column_text(statement, indices.idx_parentId).flatMap(String.init(cString:))) : Self.schema.parentId.defaultValue,
+      worktreeBranch: (indices.idx_worktreeBranch >= 0) && (indices.idx_worktreeBranch < argc) ? (sqlite3_column_text(statement, indices.idx_worktreeBranch).flatMap(String.init(cString:))) : Self.schema.worktreeBranch.defaultValue,
+      folderPaths: (indices.idx_folderPaths >= 0) && (indices.idx_folderPaths < argc) ? (sqlite3_column_text(statement, indices.idx_folderPaths).flatMap(String.init(cString:))) : Self.schema.folderPaths.defaultValue,
+      folderPathsOrder: (indices.idx_folderPathsOrder >= 0) && (indices.idx_folderPathsOrder < argc) ? (sqlite3_column_text(statement, indices.idx_folderPathsOrder).flatMap(String.init(cString:))) : Self.schema.folderPathsOrder.defaultValue,
+      createdAt: (indices.idx_createdAt >= 0) && (indices.idx_createdAt < argc) ? (sqlite3_column_text(statement, indices.idx_createdAt).flatMap(String.init(cString:))) : Self.schema.createdAt.defaultValue
     )
   }
   
@@ -875,12 +967,12 @@ public extension Threads {
    * var statement : OpaquePointer?
    * sqlite3_prepare_v2(
    *   dbHandle,
-   *   #"UPDATE "threads" SET "summary" = ?, "updated_at" = ?, "data_type" = ?, "data" = ? WHERE "id" = ?"#,
+   *   #"UPDATE "threads" SET "summary" = ?, "updated_at" = ?, "data_type" = ?, "data" = ?, "parent_id" = ?, "worktree_branch" = ?, "folder_paths" = ?, "folder_paths_order" = ?, "created_at" = ? WHERE "id" = ?"#,
    *   -1, &statement, nil
    * )
    * 
-   * let record = Threads(id: "Hello", summary: "World", updatedAt: "Duck", dataType: "Donald", data: ...)
-   * let ok = record.bind(to: statement, indices: ( 5, 1, 2, 3, 4 )) {
+   * let record = Threads(id: "Hello", summary: "World", updatedAt: "Duck", dataType: "Donald", data: ..., parentId: "Mickey")
+   * let ok = record.bind(to: statement, indices: ( 10, 1, 2, 3, 4, 5, 6, 7, 8, 9 )) {
    *   sqlite3_step(statement) == SQLITE_DONE
    * }
    * sqlite3_finalize(statement)
@@ -920,7 +1012,32 @@ public extension Threads {
               if indices.idx_data >= 0 {
                 sqlite3_bind_blob(statement, indices.idx_data, rbp.baseAddress, Int32(rbp.count), nil)
               }
-              return try execute()
+              return try ThreadsDB.withOptCString(parentId) { ( s ) in
+                if indices.idx_parentId >= 0 {
+                  sqlite3_bind_text(statement, indices.idx_parentId, s, -1, nil)
+                }
+                return try ThreadsDB.withOptCString(worktreeBranch) { ( s ) in
+                  if indices.idx_worktreeBranch >= 0 {
+                    sqlite3_bind_text(statement, indices.idx_worktreeBranch, s, -1, nil)
+                  }
+                  return try ThreadsDB.withOptCString(folderPaths) { ( s ) in
+                    if indices.idx_folderPaths >= 0 {
+                      sqlite3_bind_text(statement, indices.idx_folderPaths, s, -1, nil)
+                    }
+                    return try ThreadsDB.withOptCString(folderPathsOrder) { ( s ) in
+                      if indices.idx_folderPathsOrder >= 0 {
+                        sqlite3_bind_text(statement, indices.idx_folderPathsOrder, s, -1, nil)
+                      }
+                      return try ThreadsDB.withOptCString(createdAt) { ( s ) in
+                        if indices.idx_createdAt >= 0 {
+                          sqlite3_bind_text(statement, indices.idx_createdAt, s, -1, nil)
+                        }
+                        return try execute()
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
