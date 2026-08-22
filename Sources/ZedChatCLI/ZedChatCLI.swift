@@ -8,6 +8,7 @@ struct ZedChatCLI: AsyncParsableCommand {
 		commandName: "zedchatcli",
 		version: "0.0.1",
 		subcommands: [
-			ListThreads.self
+			ListThreads.self,
+			GetMessage.self,
 		])
 }
