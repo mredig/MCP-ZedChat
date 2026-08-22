@@ -13,6 +13,10 @@ struct ExtractJSONBlobs: AsyncParsableCommand {
 	})
 	var output: URL
 
+	@Flag(name: [.customShort("f"), .customLong("filter")], help: "Filter into folders by model versions")
+	private var _shouldFilterByModelVersion: Int
+	var shouldFilterByModelVersion: Bool { _shouldFilterByModelVersion == 1 }
+
 	private static let dateReader = ISO8601DateFormatter().with {
 		$0.formatOptions = .withInternetDateTime
 		$0.formatOptions.insert(.withFractionalSeconds)
@@ -27,6 +31,11 @@ struct ExtractJSONBlobs: AsyncParsableCommand {
 		let dbAccessor = ZedThreadsInterface()
 
 		let rawThreads = try await dbAccessor.fetchAllThreads(limit: nil)
+
+		func getVersion(from jsonObject: [String: Any]?) -> String? {
+			guard let version = jsonObject?["version"] as? String else { return nil }
+			return version
+		}
 
 		for thread in rawThreads {
 			guard
@@ -49,8 +58,19 @@ struct ExtractJSONBlobs: AsyncParsableCommand {
 			let filename = "\(dateString)_\(thread.id, default: "no id")_\(thread.summary.prefix(20)).threadmessages"
 				.replacingOccurrences(of: "/", with: "_")
 			print(filename)
-			let outputURL = output.appending(component: filename)
-			try cleanJSON.write(to: outputURL)
+
+			if shouldFilterByModelVersion {
+				let version = getVersion(from: jsonObject as? [String: Any])
+				
+				let versionDirectory = output.appending(component: version ?? "Unknown version", directoryHint: .isDirectory)
+
+				try FileManager.default.createDirectory(at: versionDirectory, withIntermediateDirectories: true)
+				let outputURL = versionDirectory.appending(component: filename)
+				try cleanJSON.write(to: outputURL)
+			} else {
+				let outputURL = output.appending(component: filename)
+				try cleanJSON.write(to: outputURL)
+			}
 		}
 	}
 }
