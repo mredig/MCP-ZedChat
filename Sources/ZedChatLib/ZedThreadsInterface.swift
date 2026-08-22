@@ -4,7 +4,7 @@ import SwiftPizzaSnips
 import Algorithms
 
 public struct ZedThreadsInterface: Sendable {
-	let db: ThreadsDB
+	let db: ZedDB
 
 	// Cache for decompressed thread content (NSCache is thread-safe)
 	private let threadCache: ThreadCache
@@ -47,7 +47,7 @@ public struct ZedThreadsInterface: Sendable {
 			.appending(components: "Library", "Application Support", "Zed", "threads")
 			.appending(component: "threads")
 			.appendingPathExtension("db")
-		self.db = ThreadsDB(url: threadsDBFilePath, readOnly: true)
+		self.db = ZedDB(url: threadsDBFilePath, readOnly: true)
 		self.threadCache = ThreadCache()
 	}
 

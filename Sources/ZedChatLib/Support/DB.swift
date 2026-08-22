@@ -1,4 +1,4 @@
-// Autocreated by sqlite2swift at 2026-08-22T22:07:37Z
+// Autocreated by sqlite2swift at 2026-08-22T22:12:12Z
 
 import SQLite3
 import Foundation
@@ -19,7 +19,7 @@ import Lighter
  * Example:
  * ```swift
  * var db : OpaquePointer!
- * let rc = sqlite3_create_threadsdb(path, &db)
+ * let rc = sqlite3_create_zeddb(path, &db)
  * ```
  * 
  * - Parameters:
@@ -29,7 +29,7 @@ import Lighter
  * - Returns: The SQLite3 error code (`SQLITE_OK` on success).
  */
 @inlinable
-public func sqlite3_create_threadsdb(
+public func sqlite3_create_zeddb(
   _ path: UnsafePointer<CChar>!,
   _ flags: Int32 = SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE,
   _ db: inout OpaquePointer?
@@ -39,7 +39,7 @@ public func sqlite3_create_threadsdb(
   if openrc != SQLITE_OK {
     return openrc
   }
-  let execrc = sqlite3_exec(db, ThreadsDB.creationSQL, nil, nil, nil)
+  let execrc = sqlite3_exec(db, ZedDB.creationSQL, nil, nil, nil)
   if execrc != SQLITE_OK {
     sqlite3_close(db)
     db = nil
@@ -70,7 +70,7 @@ public func sqlite3_create_threadsdb(
 public func sqlite3_threads_insert(_ db: OpaquePointer!, _ record: inout Threads)
   -> Int32
 {
-  let sql = ThreadsDB.useInsertReturning ? Threads.Schema.insertReturning : Threads.Schema.insert
+  let sql = ZedDB.useInsertReturning ? Threads.Schema.insertReturning : Threads.Schema.insert
   var handle : OpaquePointer? = nil
   guard sqlite3_prepare_v2(db, sql, -1, &handle, nil) == SQLITE_OK,
         let statement = handle else { return sqlite3_errcode(db) }
@@ -365,7 +365,7 @@ public func sqlite3_threads_fetch(
  * ```
  */
 @dynamicMemberLookup
-public struct ThreadsDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCreationStatementsHolder {
+public struct ZedDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCreationStatementsHolder {
   
   /**
    * Mappings of table/view Swift types to their "reference name".
@@ -416,7 +416,7 @@ public struct ThreadsDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCrea
   public var connectionHandler : SQLConnectionHandler
   
   /**
-   * Initialize ``ThreadsDB`` with a `URL`.
+   * Initialize ``ZedDB`` with a `URL`.
    * 
    * Configures the database with a simple connection pool opening the
    * specified `URL`.
@@ -424,10 +424,10 @@ public struct ThreadsDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCrea
    * 
    * Example:
    * ```swift
-   * let db = ThreadsDB(url: ...)
+   * let db = ZedDB(url: ...)
    * 
    * // Write operations will raise an error.
-   * let readOnly = ThreadsDB(
+   * let readOnly = ZedDB(
    *   url: Bundle.module.url(forResource: "samples", withExtension: "db"),
    *   readOnly: true
    * )
@@ -444,7 +444,7 @@ public struct ThreadsDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCrea
   }
   
   /**
-   * Initialize ``ThreadsDB`` w/ a `SQLConnectionHandler`.
+   * Initialize ``ZedDB`` w/ a `SQLConnectionHandler`.
    * 
    * `SQLConnectionHandler`'s are used to open SQLite database connections when
    * queries are run using the `Lighter` APIs.
@@ -453,7 +453,7 @@ public struct ThreadsDB : SQLDatabase, SQLDatabaseAsyncChangeOperations, SQLCrea
    * 
    * Example:
    * ```swift
-   * let db = ThreadsDB(connectionHandler: .simplePool(
+   * let db = ZedDB(connectionHandler: .simplePool(
    *   url: Bundle.module.url(forResource: "samples", withExtension: "db"),
    *   readOnly: true,
    *   maxAge: 10,
@@ -992,7 +992,7 @@ public extension Threads {
     then execute: () throws -> R
   ) rethrows -> R
   {
-    return try ThreadsDB.withOptCString(id) { ( s ) in
+    return try ZedDB.withOptCString(id) { ( s ) in
       if indices.idx_id >= 0 {
         sqlite3_bind_text(statement, indices.idx_id, s, -1, nil)
       }
@@ -1012,23 +1012,23 @@ public extension Threads {
               if indices.idx_data >= 0 {
                 sqlite3_bind_blob(statement, indices.idx_data, rbp.baseAddress, Int32(rbp.count), nil)
               }
-              return try ThreadsDB.withOptCString(parentId) { ( s ) in
+              return try ZedDB.withOptCString(parentId) { ( s ) in
                 if indices.idx_parentId >= 0 {
                   sqlite3_bind_text(statement, indices.idx_parentId, s, -1, nil)
                 }
-                return try ThreadsDB.withOptCString(worktreeBranch) { ( s ) in
+                return try ZedDB.withOptCString(worktreeBranch) { ( s ) in
                   if indices.idx_worktreeBranch >= 0 {
                     sqlite3_bind_text(statement, indices.idx_worktreeBranch, s, -1, nil)
                   }
-                  return try ThreadsDB.withOptCString(folderPaths) { ( s ) in
+                  return try ZedDB.withOptCString(folderPaths) { ( s ) in
                     if indices.idx_folderPaths >= 0 {
                       sqlite3_bind_text(statement, indices.idx_folderPaths, s, -1, nil)
                     }
-                    return try ThreadsDB.withOptCString(folderPathsOrder) { ( s ) in
+                    return try ZedDB.withOptCString(folderPathsOrder) { ( s ) in
                       if indices.idx_folderPathsOrder >= 0 {
                         sqlite3_bind_text(statement, indices.idx_folderPathsOrder, s, -1, nil)
                       }
-                      return try ThreadsDB.withOptCString(createdAt) { ( s ) in
+                      return try ZedDB.withOptCString(createdAt) { ( s ) in
                         if indices.idx_createdAt >= 0 {
                           sqlite3_bind_text(statement, indices.idx_createdAt, s, -1, nil)
                         }
