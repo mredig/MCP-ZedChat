@@ -1,14 +1,6 @@
-//
-//  ToolResult.swift
-//  MCP-ZedChat
-//
-//  Created by Michael Redig on 8/22/26.
-//
-
-
 extension ThreadContent {
 	public struct ToolResult: Codable, Sendable {
-		public let content: Content?
+		public let content: [Content]?
 		public let toolUseID: String
 		public let toolName: String?
 		public let isError: Bool?
@@ -60,6 +52,28 @@ extension ThreadContent {
 					try container.encode(["image": image])
 				}
 			}
+		}
+
+		init(content: [Content]?, toolUseID: String, toolName: String?, isError: Bool?) {
+			self.content = content
+			self.toolUseID = toolUseID
+			self.toolName = toolName
+			self.isError = isError
+		}
+
+		public init(from decoder: any Decoder) throws {
+			let container = try decoder.container(keyedBy: CodingKeys.self)
+			let content: [Content]?
+			do {
+				let tContent = try container.decodeIfPresent(Content.self, forKey: .content)
+				content = tContent.map { [$0] }
+			} catch {
+				content = try container.decodeIfPresent([Content].self, forKey: .content)
+			}
+			self.content = content
+			self.isError = try container.decodeIfPresent(Bool.self, forKey: .isError)
+			self.toolUseID = try container.decode(String.self, forKey: .toolUseID)
+			self.toolName = try container.decodeIfPresent(String.self, forKey: .toolName)
 		}
 	}
 }

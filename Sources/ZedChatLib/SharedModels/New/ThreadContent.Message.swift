@@ -42,11 +42,13 @@ extension ThreadContent {
 					if let toolName = tool.toolName {
 						accumulator.append(.init(context: "\nToolName", content: .text(toolName)))
 					}
-					switch content {
-					case .text(let string):
-						accumulator.append(.init(context: "\nToolContent", content: .text(string)))
-					case .image:
-						accumulator.append(.init(context: "\nToolContent", content: .other("Generated Image - Unable to render in text")))
+					for item in content {
+						switch item {
+						case .text(let string):
+							accumulator.append(.init(context: "\nToolContent", content: .text(string)))
+						case .image:
+							accumulator.append(.init(context: "\nToolContent", content: .other("Generated Image - Unable to render in text")))
+						}
 					}
 				}
 				return accumulator

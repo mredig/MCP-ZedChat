@@ -160,7 +160,7 @@ extension Legacy.ZedThreadMessage_0_2_0 {
 					content: content,
 					toolResults: toolResults.reduce(into: [:], {
 						$0[$1.toolUseId] = ThreadContent.ToolResult(
-							content: .text($1.content.text ?? "No content"),
+							content: [.text($1.content.text ?? "No content")],
 							toolUseID: $1.toolUseId,
 							toolName: "legacy",
 							isError: $1.isError)
