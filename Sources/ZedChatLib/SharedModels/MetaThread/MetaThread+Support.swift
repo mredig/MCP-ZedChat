@@ -50,7 +50,7 @@ extension MetaThread {
 
 	@MainActor
 	public var threadItemWithContent: ThreadItem? {
-		guard let decompressed = decompressZstd(dataAsData) else {
+		guard let decompressed = Self.decompressZstd(dataAsData) else {
 			return nil
 		}
 
@@ -72,7 +72,7 @@ extension MetaThread {
 	}
 
 	public func threadItemWithContent(withMessageRange messageRange: Range<Int>?, andFilters: [ThreadFilter]) async -> ThreadItem? {
-		guard let decompressed = decompressZstd(dataAsData) else {
+		guard let decompressed = Self.decompressZstd(dataAsData) else {
 			return nil
 		}
 
@@ -103,13 +103,45 @@ extension MetaThread {
 			thread: parsedThread)
 	}
 
+	public func threadContent(
+		withMessageRange messageRange: Range<Int>? = nil,
+		andFilters: [ThreadFilter] = []
+	) async throws(ThreadError) -> ThreadContent {
+		guard let decompressed = Self.decompressZstd(dataAsData) else {
+			throw .missingContentData
+		}
+
+		var parsedThread: ThreadContent
+		do {
+			parsedThread = try JSONDecoder().decode(ThreadContent.self, from: decompressed)
+		} catch {
+			print("Error: \(error)")
+			throw .decodeError(error)
+		}
+
+		for andFilter in andFilters {
+			parsedThread = parsedThread.addingFilter(andFilter)
+		}
+
+		if let messageRange {
+			parsedThread = parsedThread.clampingToMessageRange(messageRange)
+		}
+
+		return parsedThread
+	}
+
+	public enum ThreadError: Error {
+		case missingContentData
+		case decodeError(Error)
+	}
+
 	public func rawMessageThreadJSON() -> Data? {
 		let zstdData = dataAsData
 
-		return decompressZstd(zstdData)
+		return Self.decompressZstd(zstdData)
 	}
 
-	private func decompressZstd(_ compressedData: Data) -> Data? {
+	private static func decompressZstd(_ compressedData: Data) -> Data? {
 		// Create decompression context
 		guard let dctx = ZSTD_createDCtx() else {
 			return nil

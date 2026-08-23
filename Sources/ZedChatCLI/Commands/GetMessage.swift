@@ -18,15 +18,14 @@ struct GetMessage: AsyncParsableCommand {
 		let dbAccessor = ZedThreadsInterface()
 
 		guard
-			let thread = try await dbAccessor.fetchThreadWithContent(id: threadID.lowercased()),
-			let idkThread = thread.thread
+			let threadContent = try await dbAccessor.fetchThreadContent(id: threadID.lowercased())
 		else { throw ZedChatError.contentError(message: "Failed to load content") }
 
-		guard messageIndex < idkThread.messages.count else {
-			throw ZedChatError.contentError(message: "\(messageIndex) out of range (thread has \(idkThread.messages.count) messages")
+		guard messageIndex < threadContent.messages.count else {
+			throw ZedChatError.contentError(message: "\(messageIndex) out of range (thread has \(threadContent.messages.count) messages")
 		}
 
-		let message = idkThread.messages[messageIndex]
+		let message = threadContent.messages[messageIndex]
 
 		let fullText = message.textContent
 

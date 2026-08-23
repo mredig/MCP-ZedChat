@@ -34,10 +34,15 @@ public struct ZedThreadsInterface: Sendable {
 
 	// Wrapper class for NSCache (must be a class, not a struct)
 	private final class CachedThreadContent: @unchecked Sendable {
-		let consumable: MetaThread.ThreadItem
+//		let consumable: MetaThread.ThreadItem
+//
+//		init(consumable: MetaThread.ThreadItem) {
+//			self.consumable = consumable
+//		}
+		let content: ThreadContent
 
-		init(consumable: MetaThread.ThreadItem) {
-			self.consumable = consumable
+		init(content: ThreadContent) {
+			self.content = content
 		}
 	}
 
@@ -62,6 +67,11 @@ public struct ZedThreadsInterface: Sendable {
 	public func fetchThreadWithContent(id: String) async throws -> MetaThread.ThreadItem? {
 		let thread = try await fetchThread(id: id)
 		return await getCachedThreadContent(for: thread)
+	}
+
+	public func fetchThreadContent(id: String) async throws -> ThreadContent? {
+		let thread = try await fetchThread(id: id)
+		return try await getCachedThreadContent(for: thread)
 	}
 
 	public func searchThreadTitles(for query: String, limit: Int?) throws -> [MetaThread] {
@@ -99,13 +109,13 @@ public struct ZedThreadsInterface: Sendable {
 		}
 
 		let matches = await allThreads.asyncConcurrentMap { thread in
-			let consumable = await self.getCachedThreadContent(for: thread)
+			let content: ThreadContent? = try? await self.getCachedThreadContent(for: thread)
 
 			let results: [(index: Int, message: ThreadContent.Message)]
 			if onlyFirstMatchPerThread {
-				results = [consumable?.thread?.nextMessage(containing: query, caseInsensitive: caseInsensitive)].compactMap(\.self)
+				results = [content?.nextMessage(containing: query, caseInsensitive: caseInsensitive)].compactMap(\.self)
 			} else {
-				results = consumable?.thread?.messages(containing: query, caseInsensitive: caseInsensitive) ?? []
+				results = content?.messages(containing: query, caseInsensitive: caseInsensitive) ?? []
 			}
 
 			let contentResults = results.compactMap { result -> MetaThread.ContentResult? in
@@ -139,9 +149,9 @@ public struct ZedThreadsInterface: Sendable {
 				}
 
 				return MetaThread.ContentResult(
-					threadID: consumable?.id,
-					threadSummary: consumable?.summary,
-					threadMessageCount: consumable?.thread?.messageCount ?? 0,
+					threadID: thread.id,
+					threadSummary: thread.summary,
+					threadMessageCount: content?.messageCount ?? 0,
 					messageIndex: result.index,
 					matchPosition: matchPosition,
 					contextBefore: contextBefore,
@@ -168,15 +178,15 @@ public struct ZedThreadsInterface: Sendable {
 	/// Get thread content from cache or decompress if not cached
 	/// Uses composite key (threadID + updatedAt) to invalidate stale cache entries
 	private func getCachedThreadContent(for thread: MetaThread) async -> MetaThread.ThreadItem? {
-		guard let threadID = thread.id else { return nil }
+//		guard let threadID = thread.id else { return nil }
 
 		// Create cache key with threadID + updatedAt to handle updates
-		let cacheKey = ThreadCache.makeCacheKey(threadID: threadID, updatedAt: thread.updatedAt)
+//		let cacheKey = ThreadCache.makeCacheKey(threadID: threadID, updatedAt: thread.updatedAt)
 
-		// Check cache first - if hit, skip decompression entirely
-		if let cached = threadCache.object(forKey: cacheKey) {
-			return cached.consumable
-		}
+//		// Check cache first - if hit, skip decompression entirely
+//		if let cached = threadCache.object(forKey: cacheKey) {
+//			return cached.consumable
+//		}
 
 		// Cache miss or stale - decompress the thread
 		guard let consumable = await thread.threadItemWithContent else {
@@ -184,14 +194,49 @@ public struct ZedThreadsInterface: Sendable {
 		}
 
 		// Calculate approximate cost (characters + overhead)
-		let cost = consumable.thread?.messages.reduce(0) { sum, msg in
-			sum + msg.textContent.count
-		} ?? 0
-
-		// Store in cache with composite key
-		let cached = CachedThreadContent(consumable: consumable)
-		threadCache.setObject(cached, forKey: cacheKey, cost: cost)
+//		let cost = consumable.thread?.messages.reduce(0) { sum, msg in
+//			sum + msg.textContent.count
+//		} ?? 0
+//
+//		// Store in cache with composite key
+//		let cached = CachedThreadContent(consumable: consumable)
+//		threadCache.setObject(cached, forKey: cacheKey, cost: cost)
 
 		return consumable
+	}
+
+	/// Get thread content from cache or decompress if not cached
+	/// Uses composite key (threadID + updatedAt) to invalidate stale cache entries
+	private func getCachedThreadContent(for thread: MetaThread) async throws(MetaThread.ThreadError) -> ThreadContent? {
+		guard let threadID = thread.id else { return nil }
+
+		// Create cache key with threadID + updatedAt to handle updates
+		let cacheKey = ThreadCache.makeCacheKey(threadID: threadID, updatedAt: thread.updatedAt)
+
+		// Check cache first - if hit, skip decompression entirely
+		if let cached = threadCache.object(forKey: cacheKey) {
+			return cached.content
+		}
+
+		// Cache miss or stale - decompress the thread
+//		guard let consumable = await thread.threadItemWithContent else {
+//			return nil
+//		}
+		let content = try await thread.threadContent()
+
+		// Calculate approximate cost (characters + overhead)
+//		let cost = consumable.thread?.messages.reduce(0) { sum, msg in
+//			sum + msg.textContent.count
+//		} ?? 0
+		let cost = content.messages.reduce(0) { sum, msg in
+			sum + msg.textContent.count
+		}
+
+		// Store in cache with composite key
+//		let cached = CachedThreadContent(consumable: consumable)
+		let cached = CachedThreadContent(content: content)
+		threadCache.setObject(cached, forKey: cacheKey, cost: cost)
+
+		return content
 	}
 }

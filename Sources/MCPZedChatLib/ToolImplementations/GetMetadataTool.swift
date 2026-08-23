@@ -58,16 +58,17 @@ struct GetMetadataTool: ToolImplementation {
 	func callAsFunction() async throws(ContentError) -> CallTool.Result {
 		do {
 			// Get the thread content (uses cache if available)
+			async let getMetaThread = dbAccessor.fetchThread(id: threadID)
 			guard
-				let consumable = try await dbAccessor.fetchThreadWithContent(id: threadID),
-				let zedThread = consumable.thread
+				let zedThread = try await dbAccessor.fetchThreadContent(id: threadID)
 			else { throw ContentError.contentError(message: "Failed to load thread content") }
 
+			let metaThread = try await getMetaThread
 			// If messageIndex is provided, return message metadata
 			if let messageIndex = messageIndex {
-				return try messageMetadata(for: messageIndex, in: zedThread, threadSummary: consumable.summary)
+				return try messageMetadata(for: messageIndex, in: zedThread, threadSummary: metaThread.summary)
 			} else {
-				return try threadMetadata(for: zedThread, threadSummary: consumable.summary)
+				return try threadMetadata(for: zedThread, threadSummary: metaThread.summary)
 			}
 		} catch let error as ContentError {
 			throw error
