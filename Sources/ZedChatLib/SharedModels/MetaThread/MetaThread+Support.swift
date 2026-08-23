@@ -31,7 +31,6 @@ extension MetaThread {
 		public let id: String?
 		public let summary: String
 		public let lastUpdate: Date
-		public let thread: ThreadContent?
 	}
 
 	@MainActor
@@ -44,63 +43,7 @@ extension MetaThread {
 		.init(
 			id: id,
 			summary: summary,
-			lastUpdate: MetaThread.dateFormatter.date(from: updatedAt) ?? .now,
-			thread: nil)
-	}
-
-	@MainActor
-	public var threadItemWithContent: ThreadItem? {
-		guard let decompressed = Self.decompressZstd(dataAsData) else {
-			return nil
-		}
-
-		// Parse JSON into ZedThread structure
-		let parsedThread: ThreadContent?
-		do {
-			parsedThread = try JSONDecoder().decode(ThreadContent.self, from: decompressed)
-		} catch {
-			// If JSON parsing fails, return nil
-			print("Error: \(error)")
-			parsedThread = nil
-		}
-
-		return .init(
-			id: id,
-			summary: summary,
-			lastUpdate: MetaThread.dateFormatter.date(from: updatedAt) ?? .now,
-			thread: parsedThread)
-	}
-
-	public func threadItemWithContent(withMessageRange messageRange: Range<Int>?, andFilters: [ThreadFilter]) async -> ThreadItem? {
-		guard let decompressed = Self.decompressZstd(dataAsData) else {
-			return nil
-		}
-
-		// Parse JSON into ZedThread structure
-		var parsedThread: ThreadContent?
-		do {
-			parsedThread = try JSONDecoder().decode(ThreadContent.self, from: decompressed)
-		} catch {
-			// If JSON parsing fails, return nil
-			print("Error: \(error)")
-			parsedThread = nil
-		}
-
-		for andFilter in andFilters {
-			parsedThread = parsedThread?.addingFilter(andFilter)
-		}
-
-		if let messageRange {
-			parsedThread = parsedThread?.clampingToMessageRange(messageRange)
-		}
-
-		let date = await MetaThread.dateFormatter.date(from: updatedAt) ?? .now
-
-		return .init(
-			id: id,
-			summary: summary,
-			lastUpdate: date,
-			thread: parsedThread)
+			lastUpdate: MetaThread.dateFormatter.date(from: updatedAt) ?? .now)
 	}
 
 	public func threadContent(
