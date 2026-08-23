@@ -24,12 +24,12 @@ struct StructuredContentOutput<Content: Codable & Sendable>: Codable, Sendable {
 
 		if let metaData {
 			let jsonString = try? Self.encodeToJSONString(metaData)
-			jsonString.map { accumulator.append(.text($0)) }
+			jsonString.map { accumulator.append(.text(text: $0, annotations: nil, _meta: nil)) }
 		}
 
 		for item in content {
 			let jsonString = try? Self.encodeToJSONString(item)
-			jsonString.map { accumulator.append(.text($0)) }
+			jsonString.map { accumulator.append(.text(text: $0, annotations: nil, _meta: nil)) }
 		}
 
 		return .init(content: accumulator, isError: false)
