@@ -16,7 +16,7 @@ extension ThreadContent.Message {
 
 		public struct Thinking: Codable, Sendable {
 			public let text: String
-			public let signature: String
+			public let signature: String?
 		}
 
 		public struct ToolUse: Codable, Sendable, CustomStringConvertible {
