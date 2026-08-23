@@ -9,5 +9,6 @@ struct Troubleshoot: AsyncParsableCommand {
 		abstract: "Perform some troubleshooting analysis",
 		subcommands: [
 			DecodeStressTest.self,
+			ExtractJSON.self,
 		])
 }
