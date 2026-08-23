@@ -34,9 +34,9 @@ public struct ZedThreadsInterface: Sendable {
 
 	// Wrapper class for NSCache (must be a class, not a struct)
 	private final class CachedThreadContent: @unchecked Sendable {
-		let consumable: Thread.ThreadItem
+		let consumable: MetaThread.ThreadItem
 
-		init(consumable: Thread.ThreadItem) {
+		init(consumable: MetaThread.ThreadItem) {
 			self.consumable = consumable
 		}
 	}
@@ -51,20 +51,20 @@ public struct ZedThreadsInterface: Sendable {
 		self.threadCache = ThreadCache()
 	}
 
-	public func fetchAllThreads(limit: Int?) async throws -> [Thread] {
+	public func fetchAllThreads(limit: Int?) async throws -> [MetaThread] {
 		try await db.threads.fetch(limit: limit, orderBy: \.updatedAt, .descending)
 	}
 
-	public func fetchThread(id: String) async throws -> Thread {
+	public func fetchThread(id: String) async throws -> MetaThread {
 		try await db.threads.find(id).unwrap("No thread found matching id \(id)")
 	}
 
-	public func fetchThreadWithContent(id: String) async throws -> Thread.ThreadItem? {
+	public func fetchThreadWithContent(id: String) async throws -> MetaThread.ThreadItem? {
 		let thread = try await fetchThread(id: id)
 		return await getCachedThreadContent(for: thread)
 	}
 
-	public func searchThreadTitles(for query: String, limit: Int?) throws -> [Thread] {
+	public func searchThreadTitles(for query: String, limit: Int?) throws -> [MetaThread] {
 		try db.threads.fetch(limit: limit, orderBy: \.updatedAt, .descending) {
 			$0.summary.contains(query, caseInsensitive: true)
 		}
@@ -77,7 +77,7 @@ public struct ZedThreadsInterface: Sendable {
 		onlyFirstMatchPerThread: Bool,
 		scopedThreadIDs: Set<String>? = nil,
 		excludeThreadIDs: Bool = false
-	) async throws -> [Thread.ContentResult] {
+	) async throws -> [MetaThread.ContentResult] {
 		guard page >= 0 else { return [] }
 		var allThreads = try await fetchAllThreads(limit: nil)
 
@@ -108,7 +108,7 @@ public struct ZedThreadsInterface: Sendable {
 				results = consumable?.thread?.messages(containing: query, caseInsensitive: caseInsensitive) ?? []
 			}
 
-			let contentResults = results.compactMap { result -> Thread.ContentResult? in
+			let contentResults = results.compactMap { result -> MetaThread.ContentResult? in
 				// Extract text content from message
 				let messageText = result.message.textContent
 				guard !messageText.isEmpty else { return nil }
@@ -138,7 +138,7 @@ public struct ZedThreadsInterface: Sendable {
 				case .noop: role = "noop"
 				}
 
-				return Thread.ContentResult(
+				return MetaThread.ContentResult(
 					threadID: consumable?.id,
 					threadSummary: consumable?.summary,
 					threadMessageCount: consumable?.thread?.messageCount ?? 0,
@@ -167,7 +167,7 @@ public struct ZedThreadsInterface: Sendable {
 
 	/// Get thread content from cache or decompress if not cached
 	/// Uses composite key (threadID + updatedAt) to invalidate stale cache entries
-	private func getCachedThreadContent(for thread: Thread) async -> Thread.ThreadItem? {
+	private func getCachedThreadContent(for thread: MetaThread) async -> MetaThread.ThreadItem? {
 		guard let threadID = thread.id else { return nil }
 
 		// Create cache key with threadID + updatedAt to handle updates
