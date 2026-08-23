@@ -50,7 +50,7 @@ struct SearchThreadsTool: ToolImplementation {
 	func callAsFunction() async throws(ContentError) -> CallTool.Result {
 		do {
 			let threadResults = try dbAccessor.searchThreadTitles(for: query, limit: limit)
-			async let consumableThreadResults = threadResults.asyncConcurrentMap { await $0.consumable }
+			async let consumableThreadResults = threadResults.asyncConcurrentMap { await $0.threadItem }
 			
 			let output = await StructuredContentOutput(
 				inputRequest: "zed-search-threads: query: \(query)\(limit.map { " limit: \($0)" } ?? "")",

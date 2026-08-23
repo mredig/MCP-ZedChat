@@ -97,7 +97,7 @@ struct ListThreadsTool: ToolImplementation {
 				threads = Array(threads.prefix(limit))
 			}
 			
-			async let consumableThreads = threads.asyncConcurrentMap { await $0.consumable }
+			async let consumableThreads = threads.asyncConcurrentMap { await $0.threadItem }
 			
 			var requestParts = ["zed-list-threads"]
 			if let limit = limit {

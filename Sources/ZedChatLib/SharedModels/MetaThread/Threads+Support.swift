@@ -25,8 +25,9 @@ extension MetaThread: CustomDebugStringConvertible, CustomStringConvertible {
 extension MetaThread {
 	public var uuid: UUID? { id.flatMap(UUID.init(uuidString:)) }
 	public var dataAsData: Data { Data(data) }
-
-	public struct Consumable: Codable, Sendable {
+	
+	/// A wrapper around `MetaThread`, offering type semantics.
+	public struct ThreadItem: Codable, Sendable {
 		public let id: String?
 		public let summary: String
 		public let lastUpdate: Date
@@ -39,7 +40,7 @@ extension MetaThread {
 	}
 
 	@MainActor
-	public var consumable: Consumable? {
+	public var threadItem: ThreadItem? {
 		.init(
 			id: id,
 			summary: summary,
@@ -48,7 +49,7 @@ extension MetaThread {
 	}
 
 	@MainActor
-	public var consumableWithContent: Consumable? {
+	public var threadItemWithContent: ThreadItem? {
 		guard let decompressed = decompressZstd(dataAsData) else {
 			return nil
 		}
@@ -70,7 +71,7 @@ extension MetaThread {
 			thread: parsedThread)
 	}
 
-	public func consumableWithContent(withMessageRange messageRange: Range<Int>?, andFilters: [ThreadFilter]) async -> Consumable? {
+	public func threadItemWithContent(withMessageRange messageRange: Range<Int>?, andFilters: [ThreadFilter]) async -> ThreadItem? {
 		guard let decompressed = decompressZstd(dataAsData) else {
 			return nil
 		}

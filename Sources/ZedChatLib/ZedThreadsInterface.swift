@@ -34,9 +34,9 @@ public struct ZedThreadsInterface: Sendable {
 
 	// Wrapper class for NSCache (must be a class, not a struct)
 	private final class CachedThreadContent: @unchecked Sendable {
-		let consumable: Thread.Consumable
+		let consumable: Thread.ThreadItem
 
-		init(consumable: Thread.Consumable) {
+		init(consumable: Thread.ThreadItem) {
 			self.consumable = consumable
 		}
 	}
@@ -59,7 +59,7 @@ public struct ZedThreadsInterface: Sendable {
 		try await db.threads.find(id).unwrap("No thread found matching id \(id)")
 	}
 
-	public func fetchThreadWithContent(id: String) async throws -> Thread.Consumable? {
+	public func fetchThreadWithContent(id: String) async throws -> Thread.ThreadItem? {
 		let thread = try await fetchThread(id: id)
 		return await getCachedThreadContent(for: thread)
 	}
@@ -167,7 +167,7 @@ public struct ZedThreadsInterface: Sendable {
 
 	/// Get thread content from cache or decompress if not cached
 	/// Uses composite key (threadID + updatedAt) to invalidate stale cache entries
-	private func getCachedThreadContent(for thread: Thread) async -> Thread.Consumable? {
+	private func getCachedThreadContent(for thread: Thread) async -> Thread.ThreadItem? {
 		guard let threadID = thread.id else { return nil }
 
 		// Create cache key with threadID + updatedAt to handle updates
@@ -179,7 +179,7 @@ public struct ZedThreadsInterface: Sendable {
 		}
 
 		// Cache miss or stale - decompress the thread
-		guard let consumable = await thread.consumableWithContent else {
+		guard let consumable = await thread.threadItemWithContent else {
 			return nil
 		}
 
