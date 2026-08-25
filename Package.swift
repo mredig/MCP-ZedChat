@@ -88,9 +88,19 @@ let package = Package(
             name: "MCPZedChatTests",
             dependencies: [
 				.targetItem(name: "MCPZedChatLib", condition: nil),
-                .product(name: "MCP", package: "swift-sdk"),
-            ],
-            path: "Tests/MCPZedChatTests"
-        ),
-    ]
+				.product(name: "MCP", package: "swift-sdk"),
+			],
+			path: "Tests/MCPZedChatTests"
+		),
+		.testTarget(
+			name: "ZedChatLibTests",
+			dependencies: [
+				"ZedChatLib",
+			],
+			path: "Tests/ZedChatLibTests",
+			resources: [
+				.copy("Resources"),
+			]
+		),
+	]
 )
