@@ -33,7 +33,7 @@ final class MCPZedChatTests: XCTestCase {
         XCTAssertFalse(isError ?? false, "Echo tool should not return an error")
         XCTAssertEqual(content.count, 1, "Should return one content item")
         
-        if case .text(let text) = content.first {
+        if case .text(let text, _, _) = content.first {
             XCTAssertEqual(text, "Echo: Hello, World!")
         } else {
             XCTFail("Expected text content")
@@ -63,7 +63,7 @@ final class MCPZedChatTests: XCTestCase {
         )
         
         XCTAssertFalse(addError ?? false, "Calculate tool should not return an error")
-        if case .text(let text) = addContent.first {
+        if case .text(let text, _, _) = addContent.first {
             XCTAssertEqual(text, "15.0")
         } else {
             XCTFail("Expected text content")
@@ -80,7 +80,7 @@ final class MCPZedChatTests: XCTestCase {
         )
         
         XCTAssertFalse(mulError ?? false, "Calculate tool should not return an error")
-        if case .text(let text) = mulContent.first {
+        if case .text(let text, _, _) = mulContent.first {
             XCTAssertEqual(text, "42.0")
         } else {
             XCTFail("Expected text content")
@@ -97,7 +97,7 @@ final class MCPZedChatTests: XCTestCase {
         )
         
         XCTAssertTrue(divError ?? false, "Division by zero should return an error")
-        if case .text(let text) = divContent.first {
+        if case .text(let text, _, _) = divContent.first {
             XCTAssertTrue(text.contains("Division by zero"))
         } else {
             XCTFail("Expected text content")
@@ -124,7 +124,7 @@ final class MCPZedChatTests: XCTestCase {
         XCTAssertFalse(isError ?? false, "Timestamp tool should not return an error")
         XCTAssertEqual(content.count, 1, "Should return one content item")
         
-        if case .text(let text) = content.first {
+        if case .text(let text, _, _) = content.first {
             // Verify it's a valid ISO 8601 timestamp
             let formatter = ISO8601DateFormatter()
             XCTAssertNotNil(formatter.date(from: text), "Should be valid ISO 8601 timestamp")
