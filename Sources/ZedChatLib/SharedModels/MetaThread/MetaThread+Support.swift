@@ -47,7 +47,6 @@ extension MetaThread {
 	}
 
 	public func threadContent(
-		withMessageRange messageRange: Range<Int>? = nil,
 		andFilters: [ThreadFilter] = []
 	) async throws(ThreadError) -> ThreadContent {
 		guard let decompressed = Self.decompressZstd(dataAsData) else {
@@ -64,10 +63,6 @@ extension MetaThread {
 
 		for andFilter in andFilters {
 			parsedThread = parsedThread.addingFilter(andFilter)
-		}
-
-		if let messageRange {
-			parsedThread = parsedThread.clampingToMessageRange(messageRange)
 		}
 
 		return parsedThread

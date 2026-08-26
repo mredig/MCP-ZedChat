@@ -104,26 +104,6 @@ public struct ThreadContent: Codable, Sendable {
 		return new
 	}
 
-	public func clampingToMessageRange(_ range: Range<Int>) -> ThreadContent {
-		var new = self
-		if messages.indices.contains(range) {
-			new.messages = Array(messages[range])
-			new.messageRange = range
-		} else {
-			let newLower = max(range.lowerBound, messages.indices.lowerBound)
-			let newUpper = max(range.upperBound, messages.indices.upperBound)
-			guard newLower < newUpper else {
-				new.messages = []
-				new.messageRange = 0..<0
-				return new
-			}
-			let newRange = newLower..<newUpper
-			new.messages = Array(messages[newRange])
-			new.messageRange = newRange
-		}
-		return new
-	}
-
 	struct UnsupportedVersionError: Error {}
 
 	enum CodingKeys: String, CodingKey {
