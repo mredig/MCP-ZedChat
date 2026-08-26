@@ -95,17 +95,15 @@ struct GetMessageTool: ToolImplementation {
 			let totalLength = fullText.count
 			
 			// Determine message role and ID
-			let role: String
 			let messageID: String?
 			switch message {
 			case .user(let userMsg):
-				role = "user"
 				messageID = userMsg.id
 			case .agent:
-				role = "assistant"
+				messageID = nil
+			case .compaction:
 				messageID = nil
 			case .noop:
-				role = "noop"
 				messageID = nil
 			}
 			
@@ -136,7 +134,7 @@ struct GetMessageTool: ToolImplementation {
 				threadSummary: try await metaThread.summary,
 				messageIndex: messageIndex,
 				messageID: messageID,
-				role: role,
+				role: message.role,
 				content: contentSlice,
 				totalLength: totalLength,
 				returnedLength: contentSlice.count,

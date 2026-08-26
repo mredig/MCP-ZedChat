@@ -139,6 +139,8 @@ extension ThreadContent {
 					}
 					return nil
 				}.joined(separator: "\n")
+			case .compaction(let compactSummary):
+				return compactSummary.summary
 			}
 		}.joined(separator: "\n\n")
 	}
@@ -179,6 +181,8 @@ extension ThreadContent {
 				contents = userMessage.content
 			case .agent(let agentMessage):
 				contents = agentMessage.content
+			case .compaction(let compactSummary):
+				contents = [.compactionSummary(compactSummary.summary)]
 			case .noop:
 				continue
 			}

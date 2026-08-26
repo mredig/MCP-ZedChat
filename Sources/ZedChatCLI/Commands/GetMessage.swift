@@ -29,17 +29,7 @@ struct GetMessage: AsyncParsableCommand {
 
 		let fullText = message.textContent
 
-		let role: String
-		switch message {
-		case .user:
-			role = "user"
-		case .agent:
-			role = "assistant"
-		case .noop:
-			role = "noop"
-		}
-
-		print("(\(role)): ")
+		print("(\(message.role)): ")
 		print(fullText)
 	}
 }

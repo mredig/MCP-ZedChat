@@ -9,6 +9,10 @@ extension ThreadContent.Message {
 		case thinking(Thinking)
 		case other(String)
 
+		public static func compactionSummary(_ summary: String) -> Content {
+			Content.text(summary)
+		}
+
 		public struct Wrapper: Codable, Sendable {
 			public let context: String
 			public let content: Content

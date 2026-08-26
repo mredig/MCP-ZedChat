@@ -82,6 +82,7 @@ struct GetMetadataTool: ToolImplementation {
 		// Track message indices by type
 		var userMessageIndices: [Int] = []
 		var agentMessageIndices: [Int] = []
+		var compactionIndicies: [Int] = []
 		var noopMessageIndices: [Int] = []
 		var messagesWithToolsIndices: [Int] = []
 		var messagesWithThinkingIndices: [Int] = []
@@ -103,6 +104,8 @@ struct GetMetadataTool: ToolImplementation {
 				if hasThinking {
 					messagesWithThinkingIndices.append(index)
 				}
+			case .compaction:
+				compactionIndicies.append(index)
 			case .noop:
 				noopMessageIndices.append(index)
 			}
@@ -117,6 +120,7 @@ struct GetMetadataTool: ToolImplementation {
 			let messageCount: Int
 			let userMessageIndices: [Int]
 			let agentMessageIndices: [Int]
+			let compactionSummaryIndicies: [Int]
 			let noopMessageIndices: [Int]
 			let messagesWithToolsIndices: [Int]
 			let messagesWithThinkingIndices: [Int]
@@ -141,6 +145,7 @@ struct GetMetadataTool: ToolImplementation {
 			messageCount: thread.messageCount,
 			userMessageIndices: userMessageIndices,
 			agentMessageIndices: agentMessageIndices,
+			compactionSummaryIndicies: compactionIndicies,
 			noopMessageIndices: noopMessageIndices,
 			messagesWithToolsIndices: messagesWithToolsIndices,
 			messagesWithThinkingIndices: messagesWithThinkingIndices,
@@ -171,26 +176,27 @@ struct GetMetadataTool: ToolImplementation {
 		let message = thread.messages[index]
 
 		// Extract metadata based on message type
-		let role: String
 		let messageID: String?
 		let contentItems: [ContentItemMetadata]
 		let toolResultsCount: Int
 
 		switch message {
 		case .user(let userMsg):
-			role = "user"
 			messageID = userMsg.id
 			contentItems = userMsg.content.map { ContentItemMetadata(from: $0) }
 			toolResultsCount = 0
 
 		case .agent(let agentMsg):
-			role = "assistant"
 			messageID = nil
 			contentItems = agentMsg.content.map { ContentItemMetadata(from: $0) }
 			toolResultsCount = agentMsg.toolResults?.count ?? 0
 
+		case .compaction(let compactSummary):
+			messageID = nil
+			contentItems = [ContentItemMetadata(from: .compactionSummary(compactSummary.summary))]
+			toolResultsCount = 0
+
 		case .noop:
-			role = "noop"
 			messageID = nil
 			contentItems = []
 			toolResultsCount = 0
@@ -270,7 +276,7 @@ struct GetMetadataTool: ToolImplementation {
 			threadSummary: threadSummary,
 			messageIndex: index,
 			messageID: messageID,
-			role: role,
+			role: message.role,
 			textLength: textLength,
 			contentItemCount: contentItems.count,
 			textContentCount: textCount,

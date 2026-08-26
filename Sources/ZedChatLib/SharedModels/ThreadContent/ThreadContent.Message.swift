@@ -3,7 +3,25 @@ extension ThreadContent {
 	public enum Message: Codable, Sendable {
 		case user(UserMessage)
 		case agent(AgentMessage)
+		case compaction(CompactionSummary)
 		case noop
+
+		public var role: String {
+			switch self {
+			case .user:
+				"user"
+			case .agent:
+				"assistant"
+			case .compaction:
+				"compaction"
+			case .noop:
+				"noop"
+			}
+		}
+
+		public struct CompactionSummary: Codable, Sendable {
+			public let summary: String
+		}
 
 		public struct UserMessage: Codable, Sendable {
 			public let id: String
@@ -79,6 +97,13 @@ extension ThreadContent {
 			} else if let agentData = dict["Agent"] {
 				let agentMsg = try agentData.decode(AgentMessage.self)
 				self = .agent(agentMsg)
+			} else if let compaction = dict["Compaction"] {
+				guard
+					let compactionDict = compaction.value as? [String: String],
+					let summary = compactionDict["Summary"] else {
+					throw DecodingError.dataCorruptedError(in: container, debugDescription: "Compaction summary missing summary key")
+				}
+				self = .compaction(CompactionSummary(summary: summary))
 			} else {
 				let errorMessage = "Message must contain either 'User' or 'Agent' key"
 				throw DecodingError.dataCorruptedError(
@@ -94,6 +119,8 @@ extension ThreadContent {
 				try container.encode(["User": userMsg])
 			case .agent(let agentMsg):
 				try container.encode(["Agent": agentMsg])
+			case .compaction(let compaction):
+				try container.encode(["Compaction": ["Summary": compaction.summary]])
 			case .noop: break
 			}
 		}
@@ -106,6 +133,8 @@ extension ThreadContent {
 				content = userMsg.wrappedContent
 			case .agent(let agentMsg):
 				content = agentMsg.wrappedContent
+			case .compaction(let summary):
+				content = [Content.Wrapper(context: "Compaction", content: .compactionSummary(summary.summary))]
 			case .noop:
 				return ""
 			}

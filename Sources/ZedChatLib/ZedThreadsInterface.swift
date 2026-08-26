@@ -135,14 +135,6 @@ public struct ZedThreadsInterface: Sendable {
 				let matchText = String(messageText[matchRange])
 				let contextAfter = String(messageText[matchRange.upperBound..<afterEnd])
 
-				// Determine message role
-				let role: String
-				switch result.message {
-				case .user: role = "user"
-				case .agent: role = "assistant"
-				case .noop: role = "noop"
-				}
-
 				return MetaThread.ContentResult(
 					threadID: thread.id,
 					threadSummary: thread.summary,
@@ -152,7 +144,7 @@ public struct ZedThreadsInterface: Sendable {
 					contextBefore: contextBefore,
 					matchText: matchText,
 					contextAfter: contextAfter,
-					messageRole: role)
+					messageRole: result.message.role)
 			}
 
 			return contentResults
