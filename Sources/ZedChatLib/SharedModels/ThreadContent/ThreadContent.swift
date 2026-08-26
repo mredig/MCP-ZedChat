@@ -12,6 +12,7 @@ public struct ThreadContent: Codable, Sendable {
 	public let profile: String?
 	public let version: String?
 
+	@available(*, deprecated)
 	private(set) var filters: [ThreadFilter] = []
 
 	public init(title: String?, messages: [ThreadContent.Message], updatedAt: String, detailedSummary: String?, model: Model?, completionMode: String?, profile: String?, version: String?) {
@@ -60,6 +61,7 @@ public struct ThreadContent: Codable, Sendable {
 		}
 	}
 
+	@available(*, deprecated)
 	func addingFilter(_ filter: ThreadFilter) -> ThreadContent {
 		var new = self
 
@@ -102,7 +104,7 @@ public struct ThreadContent: Codable, Sendable {
 		return new
 	}
 
-	func clampingToMessageRange(_ range: Range<Int>) -> ThreadContent {
+	public func clampingToMessageRange(_ range: Range<Int>) -> ThreadContent {
 		var new = self
 		if messages.indices.contains(range) {
 			new.messages = Array(messages[range])

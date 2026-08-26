@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ZedChatLib
+import ZedChatLib
 
 @Suite
 struct ThreadContentClampingTests {
