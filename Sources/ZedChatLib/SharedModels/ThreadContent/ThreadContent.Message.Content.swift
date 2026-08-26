@@ -7,6 +7,7 @@ extension ThreadContent.Message {
 		case toolUse(ToolUse)
 		case mention(Mention)
 		case thinking(Thinking)
+		case image(Image)
 		case other(String)
 
 		public static func compactionSummary(_ summary: String) -> Content {
@@ -21,6 +22,10 @@ extension ThreadContent.Message {
 		public struct Thinking: Codable, Sendable {
 			public let text: String
 			public let signature: String?
+		}
+
+		public struct Image: Codable, Sendable {
+			public let source: Data
 		}
 
 		public struct ToolUse: Codable, Sendable, CustomStringConvertible {
@@ -146,6 +151,9 @@ extension ThreadContent.Message {
 			} else if let thinkingdata = dict["Thinking"] {
 				let thinking = try thinkingdata.decode(Thinking.self)
 				self = .thinking(thinking)
+			} else if let imagedata = dict["Image"] {
+				let image = try imagedata.decode(Image.self)
+				self = .image(image)
 			} else {
 				throw DecodingError.dataCorruptedError(
 					in: container,
@@ -166,6 +174,8 @@ extension ThreadContent.Message {
 				try container.encode(["Other": otherText])
 			case .thinking(let thinking):
 				try container.encode(["Thinking": thinking])
+			case .image(let image):
+				try container.encode(["Image": image])
 			}
 		}
 	}

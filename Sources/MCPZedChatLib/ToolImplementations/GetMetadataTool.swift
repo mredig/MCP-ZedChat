@@ -263,6 +263,10 @@ struct GetMetadataTool: ToolImplementation {
 					self.type = "thinking"
 					self.length = thinking.text.count
 					self.toolName = nil
+				case .image(let image):
+					self.type = "image"
+					self.length = image.source.count
+					self.toolName = nil
 				case .other(let desc):
 					self.type = "other"
 					self.length = desc.count

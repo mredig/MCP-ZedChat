@@ -147,7 +147,7 @@ extension ThreadContent {
 					return "\(item.context): \(thinking.text)"
 				case .toolUse(let toolUse):
 					return "\(item.context): \(toolUse.description)"
-				case .mention, .other:
+				case .mention, .other, .image:
 					return nil
 				}
 			}.joined(separator: " ")

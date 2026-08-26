@@ -199,6 +199,8 @@ extension ThreadContent {
 					guard otherString.range(of: query, options: searchOptions) != nil else { continue }
 				case .thinking(let thinking):
 					guard thinking.text.range(of: query, options: searchOptions) != nil else { continue }
+				case .image:
+					continue
 				}
 				return (index, message)
 			}
