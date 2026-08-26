@@ -83,7 +83,7 @@ struct ThreadContentSearchTests {
 
 	@Test("no matches returns nil")
 	func noMatchesReturnsNil() throws {
-		let thread = try TestFixtures.decode("woodchuck-0.2.0")
+		let thread = try TestFixtures.decode("woodchuck_0.2.0")
 
 		let result = thread.nextMessage(containing: "zzz-definitely-absent", caseInsensitive: true)
 
@@ -92,7 +92,7 @@ struct ThreadContentSearchTests {
 
 	@Test("messagesContaining does not report the same message twice")
 	func messagesContainingDoesNotDuplicate() throws {
-		let thread = try TestFixtures.decode("woodchuck-0.2.0")
+		let thread = try TestFixtures.decode("woodchuck_0.2.0")
 
 		// Message 0 contains "woodchuck" twice; it must be reported once.
 		let matches = thread.messages(containing: "woodchuck", caseInsensitive: false)

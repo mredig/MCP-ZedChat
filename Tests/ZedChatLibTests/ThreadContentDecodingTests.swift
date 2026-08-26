@@ -4,18 +4,24 @@ import ZedChatLib
 
 @Suite
 struct ThreadContentDecodingTests {
+	// each of these files had some encoding issue that tripped up previous versions of the model. they are kept around
+	// for tests to eliminate recurrance
 	private static let fixtures: [String] = [
 		"daylight_0.3.0",
 		"hero_mad_libs_0.3.0",
 		"jelly_beans_0.3.0",
-		"woodchuck-0.2.0",
+		"woodchuck_0.2.0",
+		"best_bear_0.3.0",
+		"trek_vs_wars_0.3.0",
 	]
 
 	private static let expectedVersions: [String: String] = [
 		"daylight_0.3.0": "0.3.0",
 		"hero_mad_libs_0.3.0": "0.3.0",
 		"jelly_beans_0.3.0": "0.3.0",
-		"woodchuck-0.2.0": "0.2.0",
+		"woodchuck_0.2.0": "0.2.0",
+		"best_bear_0.3.0": "0.3.0",
+		"trek_vs_wars_0.3.0": "0.3.0",
 	]
 
 	@Test(arguments: fixtures)
