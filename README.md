@@ -10,7 +10,7 @@ Use brew to get the [pizza tool package](https://github.com/mredig/homebrew-pizz
 ```bash
 brew tap mredig/pizza-mcp-tools
 brew update
-brew install mcp-zedchat
+brew install mcp-zedhist
 ```
 
 **Or build from source:**
@@ -25,8 +25,8 @@ swift build -c release
 {
   /// The name of your MCP server
   "zed-chat-history-search": {
-    /// The command which runs the MCP server
-    "command": "mcp-zedchat", // if built from source, provide the whole path
+    /// The name of your MCP server
+    "command": "mcp-zedhist", // if built from source, provide the whole path
     /// The arguments to pass to the MCP server
     "args": [],
     /// The environment variables to set
@@ -65,6 +65,19 @@ The AI automatically searches your history, retrieves relevant snippets, and app
 
 All tools use smart caching and token-efficient designs (snippets instead of full content, pagination for large messages).
 
+## CLI: `zedhist`
+
+The same chat-history access is available from the terminal. `zedhist` is installed by the same Homebrew formula as the MCP server (`brew install mcp-zedhist`).
+
+```bash
+zedhist list-threads              # list threads (supports date/limit filters)
+zedhist get-message <threadID>    # print a message with character-level pagination
+zedhist extract-json-blobs        # dump the decompressed thread json to a folder
+zedhist troubleshoot              # sanity-check the threads database
+```
+
+Run `zedhist --help` (or `zedhist <command> --help`) for the full options of each subcommand.
+
 ## Usage Examples
 
 Ask natural language questions in Zed's assistant - it automatically uses these tools:
@@ -92,13 +105,13 @@ If you're using this with other MCP clients (like Claude Desktop), add to your c
 {
   "mcpServers": {
     "zedchat": {
-      "command": "mcp-zedchat"
+      "command": "mcp-zedhist"
     }
   }
 }
 ```
 
-**Other MCP Clients:** Point to the `mcp-zedchat` binary and use the tools via their JSON-RPC interface.
+**Other MCP Clients:** Point to the `mcp-zedhist` binary and use the tools via their JSON-RPC interface.
 
 ## For Developers
 

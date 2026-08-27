@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "zedchat": {
-      "command": "/path/to/MCP-ZedChat/.build/debug/mcp-zedchat",
+      "command": "/path/to/MCP-ZedChat/.build/debug/mcp-zedhist",
       "args": [],
       "env": {}
     }

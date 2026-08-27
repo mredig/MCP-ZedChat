@@ -14,11 +14,11 @@ let package = Package(
     ],
     products: [
         .executable(
-            name: "mcp-zedchat",
+            name: "mcp-zedhist",
             targets: ["MCPZedChat"]
         ),
 		.executable(
-			name: "zedchatcli",
+			name: "zedhist",
 			targets: ["ZedChatCLI"]
 		),
 		.library(name: "MCPZedChatLib", targets: ["MCPZedChatLib"]),
