@@ -13,12 +13,12 @@ public enum Entrypoint {
 
 		let logger = Logger(label: "com.zedchat.mcp-server")
 
-		logger.info("Starting MCP ZedChat Server...")
+		logger.info("Starting MCP ZedHist Server...")
 
 		// Create the MCP server with capabilities
 		let server = Server(
-			name: "MCP-ZedChat",
 			version: "1.0.0",
+			name: "MCP-ZedHist",
 			capabilities: .init(
 				resources: .init(subscribe: true, listChanged: true),
 				tools: .init(listChanged: true)
@@ -41,11 +41,11 @@ public enum Entrypoint {
 			logger: logger
 		)
 
-		logger.info("MCP ZedChat Server initialized and ready")
+		logger.info("MCP ZedHist Server initialized and ready")
 
 		// Run the service group - this blocks until shutdown signal
 		try await serviceGroup.run()
 
-		logger.info("MCP ZedChat Server shutdown complete")
+		logger.info("MCP ZedHist Server shutdown complete")
 	}
 }

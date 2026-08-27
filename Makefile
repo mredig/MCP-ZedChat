@@ -9,7 +9,7 @@ SWIFT_BUILD_FLAGS ?=
 
 # Paths
 BUILD_DIR = .build/$(BUILD_CONFIG)
-EXECUTABLE = mcp-zedchat
+EXECUTABLE = mcp-zedhist
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -107,7 +107,5 @@ all: clean resolve build test ## Clean, resolve, build, and test
 
 .PHONY: version
 version: ## Show version information
-	@echo "MCP-ZedChat Server"
-	@echo "Version: 1.0.0"
-	@echo ""
+	@echo "mcp-zedhist / zedhist"
 	@swift --version

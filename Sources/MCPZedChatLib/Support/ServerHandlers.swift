@@ -115,7 +115,7 @@ enum ServerHandlers {
 
 			case "zedchat://welcome":
 				let welcome = """
-				Welcome to MCP ZedChat Server!
+				Welcome to MCP ZedHist Server!
 
 				This is a Model Context Protocol server built with Swift.
 				It provides tools, resources, and prompts for AI interaction.
@@ -129,8 +129,8 @@ enum ServerHandlers {
 			case "zedchat://config":
 				let configJson = """
 				{
-					"name": "MCP-ZedChat",
 					"version": "1.0.0",
+					"name": "MCP-ZedHist",
 					"capabilities": {
 						"tools": true,
 						"resources": true,

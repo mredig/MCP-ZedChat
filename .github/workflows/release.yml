@@ -27,18 +27,18 @@ jobs:
       - name: Create tarball
         run: |
           cd .build/apple/Products/Release
-          tar -czf mcp-zedchat-macos.tar.gz mcp-zedchat
-          shasum -a 256 mcp-zedchat-macos.tar.gz > mcp-zedchat-macos.tar.gz.sha256
-          mv mcp-zedchat-macos.tar.gz $GITHUB_WORKSPACE/
-          mv mcp-zedchat-macos.tar.gz.sha256 $GITHUB_WORKSPACE/
+          tar -czf zedhist-macos.tar.gz mcp-zedhist zedhist
+          shasum -a 256 zedhist-macos.tar.gz > zedhist-macos.tar.gz.sha256
+          mv zedhist-macos.tar.gz $GITHUB_WORKSPACE/
+          mv zedhist-macos.tar.gz.sha256 $GITHUB_WORKSPACE/
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: |
-            mcp-zedchat-macos.tar.gz
-            mcp-zedchat-macos.tar.gz.sha256
+            zedhist-macos.tar.gz
+            zedhist-macos.tar.gz.sha256
 
   build-linux:
     runs-on: ubuntu-latest
@@ -107,18 +107,18 @@ jobs:
         run: |
           BUILD_DIR=$(swift build -c release  --swift-sdk x86_64-swift-linux-musl --show-bin-path)
           cd $BUILD_DIR
-          tar -czf mcp-zedchat-linux.tar.gz mcp-zedchat
-          shasum -a 256 mcp-zedchat-linux.tar.gz > mcp-zedchat-linux.tar.gz.sha256
-          mv mcp-zedchat-linux.tar.gz $GITHUB_WORKSPACE/
-          mv mcp-zedchat-linux.tar.gz.sha256 $GITHUB_WORKSPACE/
+          tar -czf zedhist-linux.tar.gz mcp-zedhist zedhist
+          shasum -a 256 zedhist-linux.tar.gz > zedhist-linux.tar.gz.sha256
+          mv zedhist-linux.tar.gz $GITHUB_WORKSPACE/
+          mv zedhist-linux.tar.gz.sha256 $GITHUB_WORKSPACE/
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
           path: |
-            mcp-zedchat-linux.tar.gz
-            mcp-zedchat-linux.tar.gz.sha256
+            zedhist-linux.tar.gz
+            zedhist-linux.tar.gz.sha256
 
   release:
     needs: [build-macos, build-linux]
@@ -143,10 +143,10 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            mcp-zedchat-macos.tar.gz
-            mcp-zedchat-macos.tar.gz.sha256
-            mcp-zedchat-linux.tar.gz
-            mcp-zedchat-linux.tar.gz.sha256
+            zedhist-macos.tar.gz
+            zedhist-macos.tar.gz.sha256
+            zedhist-linux.tar.gz
+            zedhist-linux.tar.gz.sha256
           tag_name: ${{ steps.version.outputs.VERSION }}
           name: Release ${{ steps.version.outputs.VERSION }}
           draft: false
