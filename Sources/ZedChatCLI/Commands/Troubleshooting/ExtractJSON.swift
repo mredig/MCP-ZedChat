@@ -42,9 +42,9 @@ struct ExtractJSON: AsyncParsableCommand {
 			}
 			let decodeOptions: JSONSerialization.ReadingOptions
 			#if os(Linux)
-			decodeOptions = .json5Allowed
-			#else
 			decodeOptions = []
+			#else
+			decodeOptions = .json5Allowed
 			#endif
 			let tJSONObject = try JSONSerialization.jsonObject(with: data, options: decodeOptions)
 			if prettyJSON { writeOptions.insert(.prettyPrinted) }
