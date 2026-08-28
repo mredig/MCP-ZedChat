@@ -105,7 +105,7 @@ enum ServerHandlers {
 				{
 					"status": "healthy",
 					"uptime": "running",
-					"version": "1.0.0",
+					"version": "\(BuildInfo.version)",
 					"timestamp": "\(ISO8601DateFormatter().string(from: Date()))"
 				}
 				"""
@@ -120,7 +120,7 @@ enum ServerHandlers {
 				This is a Model Context Protocol server built with Swift.
 				It provides tools, resources, and prompts for AI interaction.
 
-				Version: 1.0.0
+				Version: \(BuildInfo.version)
 				"""
 				return .init(contents: [
 					.text(welcome, uri: params.uri, mimeType: "text/plain")
@@ -129,8 +129,8 @@ enum ServerHandlers {
 			case "zedchat://config":
 				let configJson = """
 				{
-					"version": "1.0.0",
 					"name": "MCP-ZedHist",
+					"version": "\(BuildInfo.version)",
 					"capabilities": {
 						"tools": true,
 						"resources": true,

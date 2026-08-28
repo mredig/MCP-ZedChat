@@ -5,8 +5,8 @@ import ZedChatLib
 @main
 struct ZedChatCLI: AsyncParsableCommand {
 	static let configuration: CommandConfiguration = .init(
-		version: "0.0.1",
 		commandName: "zedhist",
+		version: BuildInfo.version,
 		subcommands: [
 			ListThreads.self,
 			GetMessage.self,
