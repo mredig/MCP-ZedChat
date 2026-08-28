@@ -1,6 +1,7 @@
 import MCP
 import ServiceLifecycle
 import Logging
+import ZedChatLib
 
 public enum Entrypoint {
 	public static func run() async throws {
@@ -17,8 +18,8 @@ public enum Entrypoint {
 
 		// Create the MCP server with capabilities
 		let server = Server(
-			version: "1.0.0",
 			name: "MCP-ZedHist",
+			version: BuildInfo.version,
 			capabilities: .init(
 				resources: .init(subscribe: true, listChanged: true),
 				tools: .init(listChanged: true)
