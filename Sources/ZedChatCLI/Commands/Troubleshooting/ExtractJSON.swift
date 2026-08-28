@@ -36,15 +36,21 @@ struct ExtractJSON: AsyncParsableCommand {
 		}
 
 		let outData = try {
-			var options: JSONSerialization.WritingOptions = []
+			var writeOptions: JSONSerialization.WritingOptions = []
 			guard prettyJSON || sortKeys else {
 				return data
 			}
-			let tJSONObject = try JSONSerialization.jsonObject(with: data, options: .json5Allowed)
-			if prettyJSON { options.insert(.prettyPrinted) }
-			if sortKeys { options.insert(.sortedKeys) }
+			let decodeOptions: JSONSerialization.ReadingOptions
+			#if os(Linux)
+			decodeOptions = .json5Allowed
+			#else
+			decodeOptions = []
+			#endif
+			let tJSONObject = try JSONSerialization.jsonObject(with: data, options: decodeOptions)
+			if prettyJSON { writeOptions.insert(.prettyPrinted) }
+			if sortKeys { writeOptions.insert(.sortedKeys) }
 
-			return try JSONSerialization.data(withJSONObject: tJSONObject, options: options)
+			return try JSONSerialization.data(withJSONObject: tJSONObject, options: writeOptions)
 		}()
 
 		let outputURL: URL
