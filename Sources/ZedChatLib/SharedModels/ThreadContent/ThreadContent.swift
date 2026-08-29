@@ -163,7 +163,6 @@ extension ThreadContent {
 
 	func nextMessage(containing query: String, caseInsensitive: Bool, startingFrom: Int? = nil) -> (index: Int, message: Message)? {
 		let potential: [Message].SubSequence
-		let searchOptions: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
 
 		if let startingFrom {
 			let nextIndex = messages.index(after: startingFrom)
@@ -175,35 +174,11 @@ extension ThreadContent {
 
 		for index in potential.indices {
 			let message = potential[index]
-			let contents: [Message.Content]
-			switch message {
-			case .user(let userMessage):
-				contents = userMessage.content
-			case .agent(let agentMessage):
-				contents = agentMessage.content
-			case .compaction(let compactSummary):
-				contents = [.compactionSummary(compactSummary.summary)]
-			case .noop:
+
+			guard message.contains(query: query, caseInsensitive: caseInsensitive) else{
 				continue
 			}
-
-			for content in contents {
-				switch content {
-				case .text(let text):
-					guard text.range(of: query, options: searchOptions) != nil else { continue }
-				case .mention(let mention):
-					guard mention.content.range(of: query, options: searchOptions) != nil else { continue }
-				case .toolUse(let toolUse):
-					guard toolUse.rawInput?.range(of: query, options: searchOptions) != nil else { continue }
-				case .other(let otherString):
-					guard otherString.range(of: query, options: searchOptions) != nil else { continue }
-				case .thinking(let thinking):
-					guard thinking.text.range(of: query, options: searchOptions) != nil else { continue }
-				case .image:
-					continue
-				}
-				return (index, message)
-			}
+			return (index, message)
 		}
 
 		return nil

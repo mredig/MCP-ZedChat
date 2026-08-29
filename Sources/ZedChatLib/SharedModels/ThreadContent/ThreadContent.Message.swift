@@ -152,5 +152,40 @@ extension ThreadContent {
 				}
 			}.joined(separator: " ")
 		}
+
+		public func contains(query: String, caseInsensitive: Bool) -> Bool {
+			let searchOptions: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
+			let contents: [Message.Content]
+			switch self {
+			case .user(let userMessage):
+				contents = userMessage.content
+			case .agent(let agentMessage):
+				contents = agentMessage.content
+			case .compaction(let compactSummary):
+				contents = [.compactionSummary(compactSummary.summary)]
+			case .noop:
+				return false
+			}
+
+			for content in contents {
+				switch content {
+				case .text(let text):
+					guard text.range(of: query, options: searchOptions) != nil else { continue }
+				case .mention(let mention):
+					guard mention.content.range(of: query, options: searchOptions) != nil else { continue }
+				case .toolUse(let toolUse):
+					guard toolUse.rawInput?.range(of: query, options: searchOptions) != nil else { continue }
+				case .other(let otherString):
+					guard otherString.range(of: query, options: searchOptions) != nil else { continue }
+				case .thinking(let thinking):
+					guard thinking.text.range(of: query, options: searchOptions) != nil else { continue }
+				case .image:
+					continue
+				}
+				return true
+			}
+
+			return false
+		}
 	}
 }
