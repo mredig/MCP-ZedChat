@@ -12,9 +12,6 @@ public struct ThreadContent: Codable, Sendable {
 	public let profile: String?
 	public let version: String?
 
-	@available(*, deprecated)
-	private(set) var filters: [ThreadFilter] = []
-
 	public init(title: String?, messages: [ThreadContent.Message], updatedAt: String, detailedSummary: String?, model: Model?, completionMode: String?, profile: String?, version: String?) {
 		self.title = title
 		self.messages = messages
@@ -105,49 +102,6 @@ public struct ThreadContent: Codable, Sendable {
 				}
 			}
 		}
-	}
-
-	@available(*, deprecated)
-	func addingFilter(_ filter: ThreadFilter) -> ThreadContent {
-		var new = self
-
-		new.filters.append(filter)
-
-		switch filter {
-		case .voice(let voice):
-			switch voice {
-			case .agent:
-				new.messages = new.messages.filter {
-					guard case .agent = $0 else { return false }
-					return true
-				}
-			case .user:
-				new.messages = new.messages.filter {
-					guard case .user = $0 else { return false }
-					return true
-				}
-			}
-		case .query(let query, _):
-			new.messages = new.messages(containing: query, caseInsensitive: true).map(\.message)
-		case .isTool(let isTool):
-			new.messages = new.messages.filter {
-				guard case .agent(let agentMessage) = $0 else { return false }
-				return (agentMessage.toolResults != nil) == isTool
-			}
-		case .isThinking(let isThinking):
-			new.messages = new.messages.filter {
-				guard case .agent(let agentMessage) = $0 else { return false }
-
-				let hasThinking = agentMessage.content.contains { messageContent in
-					guard case .thinking = messageContent else { return false }
-					return true
-				}
-
-				return hasThinking == isThinking
-			}
-		}
-
-		return new
 	}
 
 	struct UnsupportedVersionError: Error {}

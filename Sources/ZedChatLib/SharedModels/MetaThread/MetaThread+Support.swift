@@ -46,9 +46,7 @@ extension MetaThread {
 			lastUpdate: MetaThread.dateFormatter.date(from: updatedAt) ?? .now)
 	}
 
-	public func threadContent(
-		andFilters: [ThreadFilter] = []
-	) async throws(ThreadError) -> ThreadContent {
+	public func threadContent() async throws(ThreadError) -> ThreadContent {
 		guard let decompressed = Self.decompressZstd(dataAsData) else {
 			throw .missingContentData
 		}
@@ -59,10 +57,6 @@ extension MetaThread {
 		} catch {
 			print("Error: \(error)")
 			throw .decodeError(error)
-		}
-
-		for andFilter in andFilters {
-			parsedThread = parsedThread.addingFilter(andFilter)
 		}
 
 		return parsedThread
