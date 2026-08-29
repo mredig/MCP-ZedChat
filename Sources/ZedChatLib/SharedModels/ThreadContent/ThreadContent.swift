@@ -61,6 +61,52 @@ public struct ThreadContent: Codable, Sendable {
 		}
 	}
 
+	public func messageIndicies(with filter: ThreadFilter) -> [Int] {
+		messages.enumerated().reduce([]) {
+			switch filter {
+			case .voice(let voice):
+				switch voice {
+				case .agent:
+					guard case .agent = $1.element else { return $0 }
+					return $0 + [$1.offset]
+				case .user:
+					guard case .user = $1.element else { return $0 }
+					return $0 + [$1.offset]
+				}
+			case .query(let string, let caseInsensitive):
+				guard $1.element.contains(query: string, caseInsensitive: caseInsensitive) else {
+					return $0
+				}
+				return $0 + [$1.offset]
+			case .isTool(let flag):
+				guard
+					case .agent(let agentMessage) = $1.element
+				else { return $0 }
+				let isTool = agentMessage.toolResults != nil
+				if flag == isTool {
+					return $0 + [$1.offset]
+				} else {
+					return $0
+				}
+			case .isThinking(let flag):
+				guard
+					case .agent(let agentMessage) = $1.element
+				else { return $0 }
+
+				let hasThinking = agentMessage.content.contains { messageContent in
+					guard case .thinking = messageContent else { return false }
+					return true
+				}
+
+				if hasThinking == flag {
+					return $0 + [$1.offset]
+				} else {
+					return $0
+				}
+			}
+		}
+	}
+
 	@available(*, deprecated)
 	func addingFilter(_ filter: ThreadFilter) -> ThreadContent {
 		var new = self
@@ -81,7 +127,7 @@ public struct ThreadContent: Codable, Sendable {
 					return true
 				}
 			}
-		case .query(let query):
+		case .query(let query, _):
 			new.messages = new.messages(containing: query, caseInsensitive: true).map(\.message)
 		case .isTool(let isTool):
 			new.messages = new.messages.filter {
